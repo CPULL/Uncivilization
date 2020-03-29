@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Kil Jonh-nun
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 1058058960952239938, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: 4242532845840727814, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: -5148158798768112516, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: 3270649304088005414, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: 1182959020634995199, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: -7869584372116134786, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: -9159571618069119407, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: -6000349827477443408, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: -7856848255266462008, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: 451538652238325487, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: -7868388913057282891, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  - {fileID: -989372105936071119, guid: 07f59f93afa32b94fadbda62bd89379f, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Kil Jonh-nun_1
+  - Kil Jonh-nun_0
+  - Kil Jonh-nun_3
+  - Kil Jonh-nun_2
+  - Kil Jonh-nun_5
+  - Kil Jonh-nun_4
+  - Kil Jonh-nun_7
+  - Kil Jonh-nun_6
+  - Kil Jonh-nun_9
+  - Kil Jonh-nun_8
+  - Kil Jonh-nun_10
+  - Kil Jonh-nun_11
+  m_Tag: Kil Jonh-nun
+  m_IsVariant: 0

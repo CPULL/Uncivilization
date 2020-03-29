@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Puttan
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: -8744906754806984789, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: 1572223682200607419, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: 4174359028321885992, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: 3281237479533584628, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: -6027298435709458322, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: -6336564883194648610, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: -5922033887770809786, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: -4270733482914739780, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: 7110945474330295969, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: -3660066216905042508, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: 1108879466927669272, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  - {fileID: -5954283073189474409, guid: 43218bdeaccb817489c4fb126358d9da, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Puttan_2
+  - Puttan_3
+  - Puttan_0
+  - Puttan_1
+  - Puttan_6
+  - Puttan_7
+  - Puttan_4
+  - Puttan_5
+  - Puttan_8
+  - Puttan_9
+  - Puttan_11
+  - Puttan_10
+  m_Tag: Puttan
+  m_IsVariant: 0

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Hisdognan
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 4865356053456197887, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 5766247574611429436, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: -6466488213844000892, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: -5448813258538389433, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 8799812168471028020, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: -4451915280844957586, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 9075642532419540077, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 1685572133459040415, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 669944771552693332, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 971768745396959972, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 8662469828864622244, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  - {fileID: 8199001984311583368, guid: 7c3be5a54313b9948a08e2685741e8fa, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Hisdognan_10
+  - Hisdognan_11
+  - Hisdognan_1
+  - Hisdognan_0
+  - Hisdognan_3
+  - Hisdognan_2
+  - Hisdognan_5
+  - Hisdognan_4
+  - Hisdognan_7
+  - Hisdognan_6
+  - Hisdognan_9
+  - Hisdognan_8
+  m_Tag: Hisdognan
+  m_IsVariant: 0

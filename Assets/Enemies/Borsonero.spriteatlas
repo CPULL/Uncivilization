@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Borsonero
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: -5402714079770740296, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: 5712177358313296656, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: -8633655930914290764, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: 2391964870927574476, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: -2886985653418053444, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: 7672757005422095180, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: -6450087122852786049, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: 6341622723855628120, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: -6952857887618941126, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: -8234511465603507364, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: -2401822671608333583, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  - {fileID: -1294717816977417766, guid: 4410b890d5e97914f9a6a548a312da77, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Borsonero_10
+  - Borsonero_11
+  - Borsonero_5
+  - Borsonero_4
+  - Borsonero_7
+  - Borsonero_6
+  - Borsonero_1
+  - Borsonero_0
+  - Borsonero_3
+  - Borsonero_2
+  - Borsonero_9
+  - Borsonero_8
+  m_Tag: Borsonero
+  m_IsVariant: 0

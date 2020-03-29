@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Mungaweb
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings: []
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: -5600092121142322915, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 4100927845949116536, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: -9088589410749046923, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 4308399765809713329, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 5598560592596966651, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 2882653549858276471, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 1450380162629750548, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 8011668059246556505, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 5963200873425230106, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 8774915857656086153, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 3571608305286946886, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  - {fileID: 7433843025629292, guid: 2946eff8a510c944197ce13c095b3e2a, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Mungaweb_0
+  - Mungaweb_1
+  - Mungaweb_2
+  - Mungaweb_3
+  - Mungaweb_4
+  - Mungaweb_5
+  - Mungaweb_6
+  - Mungaweb_7
+  - Mungaweb_8
+  - Mungaweb_9
+  - Mungaweb_11
+  - Mungaweb_10
+  m_Tag: Mungaweb
+  m_IsVariant: 0

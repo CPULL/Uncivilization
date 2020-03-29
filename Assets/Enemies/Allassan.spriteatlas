@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Allassan
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 3027269416405749877, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: 3672069511251094205, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: 5001349061164401196, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: -4877317912310401742, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: -690754690993695667, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: -9132450608316838129, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: -7316184652537219743, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: -328013747179583366, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: 962238298126521572, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: 2999951220216448560, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: 376264596202171606, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  - {fileID: 8989754621109256467, guid: 4b9396fcd54c1d546b5976bc40185a05, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Allassan_9
+  - Allassan_8
+  - Allassan_3
+  - Allassan_2
+  - Allassan_1
+  - Allassan_0
+  - Allassan_7
+  - Allassan_6
+  - Allassan_5
+  - Allassan_4
+  - Allassan_10
+  - Allassan_11
+  m_Tag: Allassan
+  m_IsVariant: 0

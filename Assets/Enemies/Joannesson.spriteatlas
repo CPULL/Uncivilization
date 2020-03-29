@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Joannesson
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings: []
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 7259634110242149274, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: -7345423091900964161, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: -7349179490569709118, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: -6405765414739611682, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: 853273245521794957, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: -3782409553358948131, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: -651836968174531143, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: -2168206176446868264, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: 7688299949765576079, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: 3234665953736480915, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: 8448246470869757488, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  - {fileID: -7187113400003082291, guid: bfd371ad51e19bb4991e1c1b9416f7a8, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Joannesson_0
+  - Joannesson_1
+  - Joannesson_2
+  - Joannesson_3
+  - Joannesson_4
+  - Joannesson_5
+  - Joannesson_6
+  - Joannesson_7
+  - Joannesson_8
+  - Joannesson_9
+  - Joannesson_11
+  - Joannesson_10
+  m_Tag: Joannesson
+  m_IsVariant: 0

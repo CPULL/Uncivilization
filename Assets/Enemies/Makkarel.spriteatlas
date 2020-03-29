@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Makkarel
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 2048
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 2184684115885918472, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: -3741356921471905132, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: -3242115317289405365, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 6300739421786214999, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 8257693328548640696, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 1629283684361530227, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 1902639021352570275, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 1926680607592797944, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 8920123046407977212, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: -7778667876922846706, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 3533007459572578304, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  - {fileID: 4434460289399625784, guid: fecdcaace761dd9468a36a6dc7f38b6d, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Makkarel_0
+  - Makkarel_1
+  - Makkarel_2
+  - Makkarel_3
+  - Makkarel_4
+  - Makkarel_5
+  - Makkarel_6
+  - Makkarel_7
+  - Makkarel_8
+  - Makkarel_9
+  - Makkarel_11
+  - Makkarel_10
+  m_Tag: Makkarel
+  m_IsVariant: 0

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Maccaron
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: -8201404101357838751, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: 8889264331261899666, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: 2737511595131873247, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: -2701370409160900520, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: 1487278447800380454, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: -8838352659516107217, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: 8322337395239226618, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: -2131190391065896499, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: 7138731942204879806, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: -4546372550837909352, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: 7778963187562339535, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  - {fileID: 6486657168219029896, guid: d4931d8d06d5eb04bb7cb0aab965aea2, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Maccaron_0
+  - Maccaron_1
+  - Maccaron_2
+  - Maccaron_3
+  - Maccaron_4
+  - Maccaron_5
+  - Maccaron_6
+  - Maccaron_7
+  - Maccaron_8
+  - Maccaron_9
+  - Maccaron_11
+  - Maccaron_10
+  m_Tag: Maccaron
+  m_IsVariant: 0

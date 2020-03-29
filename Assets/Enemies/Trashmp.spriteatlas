@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Trashmp
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+    totalSpriteSurfaceArea: 786432
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: -1620416871865480921, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: -1050715025140192046, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: -7011485708109645093, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: 7637557059448060143, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: -3018370930737026240, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: 4742729246262664763, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: 1495882897073819720, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: -7595680371191756679, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: -8044945524098487697, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: -136675421945776137, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: 4569961300758024767, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  - {fileID: -7619276186525723703, guid: f7cf11808b0e0374fa0cd78011abc274, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - Trashmp_5
+  - Trashmp_4
+  - Trashmp_7
+  - Trashmp_6
+  - Trashmp_1
+  - Trashmp_0
+  - Trashmp_3
+  - Trashmp_2
+  - Trashmp_9
+  - Trashmp_8
+  - Trashmp_10
+  - Trashmp_11
+  m_Tag: Trashmp
+  m_IsVariant: 0

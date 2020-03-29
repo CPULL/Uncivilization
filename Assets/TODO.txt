@@ -1,0 +1,135 @@
+
+
+TODO NOW ***************************
+Test the basic multiplayer progress
+Add code to show what a player did
+Add code to research techs and to build improvements
+Add the description and dependencies for the techs
+Add the prerequisites to all advanced items
+
+
+TODO ***************************
+If a player leaves the server make it die in multiplayer (complete when the game will be playable)
+Add credits (special mention for Ollie)
+Add more avatars
+Implement view panels (in progress)
+Add server logs on the remote network, when writing something on the logs send it also to remote managers
+Add global balloon for game
+Add "what is going on" for the game (typing text)
+Add a sprite resource inside the Enemy class and set it to the avatar of human players or basic sprite[0] of AIs
+
+
+IMPROVEMENTS ***************************
+if a game is started the game list is not updated server side, neither the participants defined on the server
+Do not have the planet too close, and reduce the rotation
+
+
+CHECK ***************************
+
+
+BUGS ***************************
+The actions received look empty
+
+If we leave the game, the game list still shows the game as "playing" (it may be normal because the game can still have humans inside) >> Add game status "Abandoned"
+If going for an improvement we need to select a city! In case the city (owned) is not selected close the view and show a message. If the city was already selected then we show a message to complete the status
+
+
+PROBABLY WILL NOT FIX ***************************
+If we start creating a game, we cannot cancel the operation
+
+
+
+
+ACTIONS ****************************************************************************************************************************
+Find resources
+Build weapons
+Deploy weapons
+Use weapons
+Diplomacy
+Research technologies
+Improve cities
+Denuclearize
+Settle city
+Social development
+Propaganda
+Deploy defenses
+
+
+CITY IMPROVEMENTS ****************************************************************************************************************************
+Houses
+Parks
+Farms
+Hydrophonic farms
+Hospitals
+Intelligence
+Offices
+Refineries
+Electrospinners
+Power plants
+Aerospace center
+Factories
+Schools
+Universities
+Mines
+Spaceport
+Advanced Nuclear Facility
+Theaters
+Recycling center
+
+
+TECHNOLOGIES ****************************************************************************************************************************
+Radio waves
+Chemicals
+Explosives
+Recycling
+Rocket science
+Avionics
+Naval science
+Refining
+Assembly
+Optics
+Applied Physics
+Intelligence
+Counter Intelligence
+Electronics
+Transportation
+Artificial Intelligence
+Signal processing
+Encryption
+Decryption
+Cybernetics
+Nanobots
+Propellers
+Drones
+Acoustics
+
+
+RESOURCES ****************************************************************************************************************************
+Food <- produced by farms, some basic amount is produced no matter what
+Iron <- produced by mines and recycling
+Aluminum <- produced by mines, produced by recycling
+Uranium <- requires mines and some tech
+Plutonium <- requires nuclear reactors, converts Uranium
+Hydrogen <- Fossil fuels and tech??? and Refineries
+Plastic <- Fossil fuels and industries, produced by recycling
+Electronics <- requires tech, industries and offices
+Composite <- tech??? and plastic and nanofibers and aluminum and fossil fuels and Electrospinners
+Fossil fuels <- Refineries and mines
+
+
+WEAPONS ****************************************************************************************************************************
+TNT
+C4
+Uranium
+Plutonium
+Hydrogen
+
+
+DELIVERY ****************************************************************************************************************************
+People
+Missile
+Airplane
+Ship
+Submarine
+Drone
+Satellite
