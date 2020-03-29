@@ -33,7 +33,7 @@ public class GameRenderer : MonoBehaviour {
   private PlayerAction action = PlayerAction.Nothing;
   public Toggle ChatButton;
   public Options Options;
-  private readonly GameAction gameAction;
+  private readonly GameAction gameAction = new GameAction();
   public Button EndTurnButton;
   private RunningGameStatus runningGameStatus = RunningGameStatus.WaitUserAction;
   private GameEngineValues turn = null;
@@ -717,11 +717,11 @@ public class GameRenderer : MonoBehaviour {
     // Show something depending on the action, we may have the result of the action inside the turn FIXME it is not yet available
     switch(player.gameAction.action) {
       case ActionType.Nothing:
-        ShowMessage(engine.players[index].name + " does nothing", true);
+        ShowMessage(engine.players[index].name + " does nothing");
         break;
 
       case ActionType.FindResources:
-        ShowMessage(engine.players[index].name + " is finding resources.\nFound extra FIXME", true); // Show stuff for other players only if we have counterintelligence
+        ShowMessage(engine.players[index].name + " is finding resources.\nFound extra FIXME"); // Show stuff for other players only if we have counterintelligence
         break;
 
       case ActionType.ResearchTechnology:

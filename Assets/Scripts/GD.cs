@@ -330,7 +330,7 @@ public class GD : MonoBehaviour {
 
       // FIXME
       foreach (char c in txt)
-        if (char.IsControl(c) || c == '\0') {
+        if (c != '\n' && (char.IsControl(c) || c == '\0')) {
           System.Diagnostics.StackTrace st = new System.Diagnostics.StackTrace(true);
           txt = "DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> \n";
           for (int i = 0; i < st.FrameCount && i < 8; i++) {

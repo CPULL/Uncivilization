@@ -10,12 +10,10 @@ public class GameEngine {
     messages = new List<NetworkManager.GameMessage>();
   }
 
-  // FIXME get rid of the lists and use simple arrays
   internal int nump = 0;
   internal byte[] order = new byte[6];
   internal PlayerStatus[] players = new PlayerStatus[6];
   internal bool[] completed = new bool[6];
-  internal GameAction[] gameActions = new GameAction[6];
   public City[] cities = new City[3 * 3 * 6];
   public List<NetworkManager.GameMessage> messages;
   public PlayerStatus mySelf;
@@ -54,10 +52,8 @@ public class GameEngine {
       game.Players[b] = tmpsp;
     }
 
-    for (int i = 0; i < nump; i++) {
+    for (int i = 0; i < nump; i++)
       completed[i] = false;
-      gameActions[i] = new GameAction();
-    }
   }
 
   public void InitEnemies(Game theGame) { // This is for multiplayer
@@ -84,10 +80,8 @@ public class GameEngine {
       }
     }
 
-    for (int i = 0; i < nump; i++) {
+    for (int i = 0; i < nump; i++)
       completed[i] = false;
-      gameActions[i] = new GameAction();
-    }
   }
 
 
@@ -114,7 +108,7 @@ public class GameEngine {
       for (int i = 0; i < nump; i++)
         if (players[i].id == player.ID) {
           completed[i] = true;
-          gameActions[i] = gameAction;
+          players[i].gameAction = gameAction;
           break;
         }
 
@@ -124,7 +118,7 @@ public class GameEngine {
           completed[i] = true;
         else if (players[i].defeated) {
           completed[i] = true;
-          gameActions[i] = new GameAction();
+          players[i].gameAction = new GameAction();
         }
 
       // All human players completed?
@@ -153,7 +147,7 @@ public class GameEngine {
       for (int i = 0; i < nump; i++)
         if (players[i].id == player.ID) {
           completed[i] = true;
-          gameActions[i] = gameAction;
+          players[i].gameAction = gameAction;
           break;
         }
       GameEngineValues values = CalculateNextTurn();
@@ -332,7 +326,6 @@ public class GameEngine {
   public void Destroy() {
     players = null;
     completed = null;
-    gameActions = null;
     cities = null;
     messages.Clear();
     mySelf = null;
