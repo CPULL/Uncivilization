@@ -1,7 +1,7 @@
 ﻿public class GameAction {
   public ActionType action;
   public int targetCity;
-  public int tech;
+  public int tech; // FIXME mix together tech and imp, we never need both
   public int imp;
 
   public GameAction() {

@@ -1,7 +1,6 @@
 
 
 TODO NOW ***************************
-Test the basic multiplayer progress
 Add code to show what a player did
 Add code to research techs and to build improvements
 Add the description and dependencies for the techs
@@ -17,7 +16,7 @@ Add server logs on the remote network, when writing something on the logs send i
 Add global balloon for game
 Add "what is going on" for the game (typing text)
 Add a sprite resource inside the Enemy class and set it to the avatar of human players or basic sprite[0] of AIs
-
+When all players leave the game, set it as complete. In case AIs are still alive set a winner
 
 IMPROVEMENTS ***************************
 if a game is started the game list is not updated server side, neither the participants defined on the server
@@ -28,7 +27,21 @@ CHECK ***************************
 
 
 BUGS ***************************
-The actions received look empty
+When turn actions are all shown, reset the game action.
+
+
+OK, we need something for the cities.
+> Be able to understand which are ours cities
+> be able to highlight cities and empty spaces
+> Be able to disable and gray out other cities
+
+
+
+
+
+The dependency name on techs should be made wider
+Icons for buildings seems to be not valid for thechs dependencies
+
 
 If we leave the game, the game list still shows the game as "playing" (it may be normal because the game can still have humans inside) >> Add game status "Abandoned"
 If going for an improvement we need to select a city! In case the city (owned) is not selected close the view and show a message. If the city was already selected then we show a message to complete the status

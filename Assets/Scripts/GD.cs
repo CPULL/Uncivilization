@@ -47,9 +47,8 @@ public class GD : MonoBehaviour {
 
 
   public static Player thePlayer = null;
-  public static int difficulty;
-  public static Enemy[] enemies;
-  public static int selectedCity = -1;
+  public static int difficulty; // FIXME do we need it?
+  public static Enemy[] enemies; // FIXME Are we using it?
 
   public const int CPUAvatarIndex = 74;
 

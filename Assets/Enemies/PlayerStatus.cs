@@ -16,13 +16,12 @@ public class PlayerStatus {
   public int social;
   public int tech;
   public int forget;
-  public List<int> cities = new List<int>();
-  public GameAction gameAction = new GameAction();
+  public List<int> cities;
+  public GameAction gameAction;
   public bool defeated = false; // FIXME make private
   public UnityEngine.Color color;
 
   public ItemInstance[] techs;
-  public ItemInstance[] improvements;
   public int[] Food;
   public int[] Iron;
   public int[] Aluminum;
@@ -71,13 +70,13 @@ public class PlayerStatus {
     isAI = src.isAI;
   }
 
-  private void BasicInit() { 
+  private void BasicInit() {
+    cities = new List<int>();
+    gameAction = new GameAction();
+
     techs = new ItemInstance[21];
     for (int i = 0; i < 21; i++)
       techs[i] = new ItemInstance { available = false, item = GD.instance.Technologies[i] };
-    improvements = new ItemInstance[19];
-    for (int i = 0; i < 19; i++)
-      improvements[i] = new ItemInstance { available = false, item = GD.instance.Improvements[i] };
 
     Food = new int[3];
     Iron = new int[3];
@@ -135,14 +134,6 @@ public class PlayerStatus {
       res[pos + i] = d[i];
     pos += 8;
     
-    bitfield = 0;
-    for (int i = 0; i < improvements.Length; i++)
-      if (improvements[i].available) bitfield = (bitfield) | ((long)(1 << i));
-    d = System.BitConverter.GetBytes(bitfield);
-    for (int i = 0; i < 8; i++)
-      res[pos + i] = d[i];
-    pos += 8;
-
     bitfield = (defeated ? 1 : 0);
     foreach (int ci in cities) {
       bitfield |= ((long)1 << (ci + 1));
@@ -203,18 +194,17 @@ public class PlayerStatus {
   }
 
   public int UpdateValues(byte[] data, int start) {
-    // len and id are skipped
-    int pos = 10 + start;
+    // len is skipped
+    int pos = 2 + start;
+
+    id = System.BitConverter.ToUInt64(data, pos);
+    pos += 8;
+
     long bitfield = System.BitConverter.ToInt64(data, pos);
     for (int i = 0; i < techs.Length; i++)
       techs[i].available = (bitfield & (1 << i)) != 0;
     pos += 8;
     
-    bitfield = System.BitConverter.ToInt64(data, pos);
-    for (int i = 0; i < improvements.Length; i++)
-      improvements[i].available = (bitfield & (1 << i)) != 0;
-    pos += 8;
-
     bitfield = System.BitConverter.ToInt64(data, pos);
     defeated = (bitfield & 1) == 1;
     cities.Clear();

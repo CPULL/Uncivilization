@@ -4,7 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public enum PlayerAction { Nothing, ViewResources, ViewTechs, DevelopTechs, ViewImps, Developimps };
+public enum PlayerAction { Nothing, ViewResources, ViewTechs, DevelopTechs, BuildImps, Settle, Denuclearize };
 
 public class GameRenderer : MonoBehaviour {
   // Used just to renderer things. We should always ask the GameManager for all operations
@@ -38,6 +38,8 @@ public class GameRenderer : MonoBehaviour {
   private RunningGameStatus runningGameStatus = RunningGameStatus.WaitUserAction;
   private GameEngineValues turn = null;
   private float timeToWait = 0;
+  private const float waitTime = 15f;
+  public Button SkipButton;
 
   public void Init(Game theGame) {
     game = theGame;
@@ -131,6 +133,7 @@ public class GameRenderer : MonoBehaviour {
       sectors[b] = tmp;
     }
 
+    // FIXME Are we sure this should not be done inside the engine?
     // Assign a single city (population proportional to the difficulty) to each player
     for (int i = 0; i < engine.nump; i++) {
       PlayerStatus player = engine.players[i];
@@ -142,6 +145,17 @@ public class GameRenderer : MonoBehaviour {
       else
         engine.cities[pos].Set(10 - GD.difficulty, engine.players[engine.players[i].index]);
       player.cities.Add(pos);
+
+      // FIXME
+      engine.cities[pos+1].Set(10 - GD.difficulty, engine.players[engine.players[i].index]);
+      engine.cities[pos+9].Set(10 - GD.difficulty, engine.players[engine.players[i].index]);
+      player.cities.Add(pos+1);
+      player.cities.Add(pos+9);
+    }
+
+    // Set the event for each city
+    for (int i = 0; i < engine.cities.Length; i++) {
+      engine.cities[i].OnClick += ClickOnCity;
     }
 
     // Set the initial resources based on difficulty
@@ -194,10 +208,65 @@ public class GameRenderer : MonoBehaviour {
     }
   }
 
+  public void ClickOnCity(object sender, System.EventArgs e) {
+    City city = (City)sender;
+    if (action == PlayerAction.Settle) { // If possible to settle set the location to settle
+      // FIXME
+    }
+    else if (action == PlayerAction.Denuclearize) { // if possible to denuclearize set the location as denuclearize
+      // FIXME
+    }
+    else if (action == PlayerAction.BuildImps) { 
+      // Check that the city is ours and has not yet the specified improvement
+      if (city.status != CityStatus.Owned || city.owner.id != GD.thePlayer.ID) return;
+      ViewImps(city.pos);
+      ShowMessage("Select the improvement to build on city #" + city.pos);
+      gameAction.targetCity = city.pos;
+    }
+    else { // Action not selected: highlight, on click base details. More info only if we have intelligence
+      gameAction.targetCity = city.pos;
+      string msg = "<b>City</b>\nOwner: <sprite=" + city.owner.avatar + "> " + city.owner.name + "\nPopulation: " + city.population;
+      if (city.status == CityStatus.Radioactive) msg += "\n<i>Radioactive!</i>";
+      // List city improvements
+      string imps = "";
+      for (int i = 0; i < city.improvements.Length; i++) {
+        if (city.improvements[i]) {
+          if (imps != "") imps += ", ";
+          imps += GD.GetImprovementName(i);
+        }
+      }
+      if (imps != "") imps = "\n" + imps;
+      UpdateStatusMessage(msg + imps, city.city.sprite);
+
+      // Have the owner (if AI) to say something
+      if (city.owner.isAI && !city.owner.defeated) {
+        if (city.status == CityStatus.Destroyed) {
+          if (city.owner.refEnemy != null) city.owner.refEnemy.Say("This city was mine!", BalloonDirection.TL);
+        }
+        else {
+          if (city.owner.refEnemy != null) city.owner.refEnemy.Say("This city is mine!", BalloonDirection.TL);
+        }
+      }
+    }
+  }
+
+
   public static void UpdateStatusMessage(string text, Sprite icon) {
     instance.StatusText.text = text;
     instance.StatusImage.sprite = icon;
   }
+
+  public static PlayerAction GetAction() {
+    return instance != null ? instance.action : PlayerAction.Nothing;
+  }
+  public static int GetSelectedCity() {
+    return instance != null ? instance.gameAction.targetCity : -1;
+  }
+  public static int GetImprovement() {
+    return instance != null ? instance.gameAction.imp : -1;
+  }
+
+
 
   int lastWidth = 1920;
   int lastHeight = 1080;
@@ -214,6 +283,7 @@ public class GameRenderer : MonoBehaviour {
       }
     }
 
+    SkipButton.gameObject.SetActive(timeToWait > 0 && timeToWait < waitTime - 1f);
     if (timeToWait > 0) {
       timeToWait -= Time.deltaTime;
       return;
@@ -356,6 +426,16 @@ public class GameRenderer : MonoBehaviour {
     HideAllViews();
     action = build ? PlayerAction.DevelopTechs : PlayerAction.ViewTechs;
     Technologies.SetActive(true);
+    bool[] allImprovements = new bool[ImpButtons.Length];
+    foreach (int idx in engine.mySelf.cities) {
+      City c = engine.cities[idx];
+      if (c.status == CityStatus.Owned || c.status == CityStatus.Radioactive) {
+        for (int i = 0; i < allImprovements.Length; i++) {
+          allImprovements[i] = allImprovements[i] || c.improvements[i];
+        }
+      }
+    }
+
     for (int i = 0; i < TechButtons.Length; i++) {
       TechButtons[i].SetIsOnWithoutNotify(false);
       if (engine.mySelf.techs[i].available) {
@@ -363,7 +443,7 @@ public class GameRenderer : MonoBehaviour {
       }
       else {
         // Are prerequisites met? (techs and imprs)
-        if (IsItemValid(GD.instance.Technologies[i]))
+        if (IsItemValid(GD.instance.Technologies[i], allImprovements))
           TechButtons[i].GetComponent<Image>().color = PossibleTechColor;
         else
           TechButtons[i].GetComponent<Image>().color = NotgoodTechColor;
@@ -432,19 +512,20 @@ public class GameRenderer : MonoBehaviour {
   public Transform ImpDepsGrid;
   public GameObject ImpDepTemplate;
 
-  public void ViewImps(bool build) {
+  public void ViewImps(int cityIndex) {
     if (runningGameStatus != RunningGameStatus.WaitUserAction) return;
     HideAllViews();
-    action = build ? PlayerAction.Developimps : PlayerAction.ViewImps;
     Improvements.SetActive(true);
+    City city = engine.cities[cityIndex];
     for (int i = 0; i < ImpButtons.Length; i++) {
       ImpButtons[i].SetIsOnWithoutNotify(false);
-      if (engine.mySelf.improvements[i].available) {
+      // If the improvement on the city is already done we just make it green and not selectable
+      if (city.improvements[i])
         ImpButtons[i].GetComponent<Image>().color = AvailableTechColor;
-      }
       else {
+        // Can we have it?
         // Are prerequisites met? (techs and imprs)
-        if (IsItemValid(GD.instance.Improvements[i]))
+        if (IsItemValid(GD.instance.Improvements[i], city.improvements))
           ImpButtons[i].GetComponent<Image>().color = PossibleTechColor;
         else
           ImpButtons[i].GetComponent<Image>().color = NotgoodTechColor;
@@ -458,19 +539,11 @@ public class GameRenderer : MonoBehaviour {
     for (int i = 0; i < ImpButtons.Length; i++)
       ImpButtons[i].SetIsOnWithoutNotify(false);
     // Are we deciding which tech to develop?
-    if (action == PlayerAction.Developimps) {
+    if (action == PlayerAction.BuildImps) {
       // Yes, Can we develop this?
       if (ImpButtons[impIndex].GetComponent<Image>().color == PossibleTechColor) {
-        //   Yes, set it as action
         ImpButtons[impIndex].SetIsOnWithoutNotify(true);
-        gameAction.action = ActionType.BuildImprovement;
         gameAction.imp = impIndex;
-        if (GD.selectedCity == -1)
-          ShowMessage("You will build <b>" + GD.GetImprovementName(impIndex) + "</b>\n<color=red><i><b>Select the city!</b></i></color>");
-        else {
-          ShowMessage("You will build <b>" + GD.GetImprovementName(impIndex) + "</b>");
-          HideAllViews();
-        }
       }
       //   No, do not check it
     }
@@ -507,6 +580,21 @@ public class GameRenderer : MonoBehaviour {
     // FIXME Produce
   }
 
+  public void ImprovementsBuild() {
+    if (gameAction.targetCity == -1) {
+      ShowMessage("<color=red><i><b>No city selected to build the imrpvement!</b></i></color>");
+      return;
+    }
+    if (gameAction.imp == -1) {
+      ShowMessage("<color=red><i><b>No city improvement is selected!</b></i></color>");
+      return;
+    }
+    ShowMessage("Improvement <b>" + GD.GetImprovementName(gameAction.imp) + "</b> will be built on city #" + gameAction.targetCity);
+    gameAction.action = ActionType.BuildImprovement;
+    HideAllViews();
+  }
+
+
   #endregion Improvements
 
   #region Items support functions *************************************************************************************************************************************************
@@ -514,24 +602,28 @@ public class GameRenderer : MonoBehaviour {
   public Sprite GoodSprite;
   public Sprite BadSprite;
 
-  private bool IsItemValid(Item item) {
-    bool good = true;
+  private bool IsItemValid(Item item, bool[] improvements) {
     foreach (Dependency it in item.prerequisites) {
       if (it.type == ProductionType.Technology && !engine.mySelf.techs[(int)it.index - (int)it.type].available) {
-        good = false;
-        break;
+        return false;
       }
-      else if (it.type == ProductionType.Improvement && !engine.mySelf.improvements[(int)it.index - (int)it.type].available) {
-        good = false;
-        break;
+      else if (it.type == ProductionType.Improvement && !improvements[(int)it.index - (int)it.type]) {
+        return false;
       }
     }
-    return good;
+    return true;
   }
 
   private bool IsItemAvailable(Item item) {
     if (item.type == ProductionType.Technology) return engine.mySelf.techs[(int)item.index].available;
-    if (item.type == ProductionType.Improvement) return engine.mySelf.improvements[(int)item.index].available;
+    if (item.type == ProductionType.Improvement) {
+      foreach (int idx in engine.mySelf.cities) {
+        City c = engine.cities[idx];
+        if (c.status == CityStatus.Owned || c.status == CityStatus.Radioactive) {
+          if (c.improvements[(int)item.index]) return true;
+        }
+      }
+    }
     return false; // FIXME check the resources or other stuff
   }
 
@@ -552,11 +644,16 @@ public class GameRenderer : MonoBehaviour {
   }
 
   public void BuildImprovements() {
+    HideAllViews();
     // Show the improvement view and wait for a tech to be selected
     gameAction.imp = -1;
     gameAction.targetCity = -1;
-    GD.selectedCity = -1;
-    ViewImps(true);
+    // Show only our cities
+    for (int i = 0; i < engine.cities.Length; i++) {
+      engine.cities[i].Highlight(CityHighlight.Owned);
+    }
+    ShowMessage("Select one of your cities to build the improvement...");
+    action = PlayerAction.BuildImps;
   }
 
   public void EndTurn() {
@@ -573,11 +670,10 @@ public class GameRenderer : MonoBehaviour {
         ShowMessage("<color=red>You did not select the improvement to build!</color>", true);
         return;
       }
-      if (GD.selectedCity == -1) {
+      if (gameAction.targetCity == -1) {
         ShowMessage("<color=red>You did not select the city where to build the improvement!</color>", true);
         return;
       }
-      gameAction.targetCity = GD.selectedCity;
     }
 
     engine.EndTurn(game.multiplayer, GD.thePlayer, gameAction);
@@ -634,12 +730,19 @@ public class GameRenderer : MonoBehaviour {
     Resources.SetActive(false);
     Technologies.SetActive(false);
     Improvements.SetActive(false);
+    for (int i = 0; i < engine.cities.Length; i++)
+      engine.cities[i].Highlight(CityHighlight.None);
   }
 
   private void ShowMessage(string msg, bool warning = false) {
     StatusText.text = (warning ? "<color=red>" : "") + msg + (warning ? "</color>" : "");
     StatusImage.enabled = false;
     GD.DebugLog(msg, GD.LT.Debug);
+  }
+
+  public void Skip() {
+    timeToWait = 0;
+    SkipButton.gameObject.SetActive(false);
   }
 
   private Color AvailableTechColor = new Color32(20, 255, 20, 255);
@@ -669,7 +772,7 @@ public class GameRenderer : MonoBehaviour {
     for (int i = 0; i < turn.cities.Length; i++) {
       if (turn.cities[i] == null) continue;
       CityVals cv = turn.cities[i];
-      if (cv.pos == 255 || cv.status == City.Status.Empty) continue;
+      if (cv.pos == 255 || (cv.status != CityStatus.Owned && cv.status != CityStatus.Radioactive)) continue;
       PlayerStatus ownerval = engine.GetPlayerStatusByIndex(cv.owner);
       engine.cities[i].SetValues(cv, ownerval);
     }
@@ -706,6 +809,7 @@ public class GameRenderer : MonoBehaviour {
       runningGameStatus = RunningGameStatus.WaitUserAction;
       gameAction.action = ActionType.Nothing;
       EndTurnButton.enabled = true;
+      HideAllViews();
       GD.DebugLog("Next turn completed", GD.LT.Debug);
       return;
     }
@@ -721,22 +825,34 @@ public class GameRenderer : MonoBehaviour {
         break;
 
       case ActionType.FindResources:
+        // We cannot really see the extra resources
         ShowMessage(engine.players[index].name + " is finding resources.\nFound extra FIXME"); // Show stuff for other players only if we have counterintelligence
         break;
 
       case ActionType.ResearchTechnology:
+        // FIXME show details only if we have intelligence
         ShowMessage(engine.players[index].name + " researched technology " + GD.GetTechName(player.gameAction.tech));
+        engine.players[index].techs[player.gameAction.tech].available = true;
         break;
 
       case ActionType.BuildImprovement:
-        ShowMessage(engine.players[index].name + " is building " + GD.GetImprovementName(player.gameAction.imp) + " on city #" + player.gameAction.targetCity);
+        // FIXME show details only if we have intelligence
+        // Do we still have this city?
+        if (!player.cities.Contains(player.gameAction.targetCity))
+          ShowMessage(engine.players[index].name + " tried to build " + GD.GetImprovementName(player.gameAction.imp) + " on city #" + player.gameAction.targetCity + " but the city does not belong anymore to " + engine.players[index].name);
+        else if (engine.cities[player.gameAction.targetCity].status == CityStatus.Destroyed)
+          ShowMessage(engine.players[index].name + " tried to build " + GD.GetImprovementName(player.gameAction.imp) + " on city #" + player.gameAction.targetCity + " but the city is destroyed.");
+        else {
+          ShowMessage(engine.players[index].name + " is building " + GD.GetImprovementName(player.gameAction.imp) + " on city #" + player.gameAction.targetCity);
+          engine.cities[player.gameAction.targetCity].improvements[player.gameAction.imp] = true;
+        }
         break;
 
       default:
         ShowMessage(engine.players[index].name + " unhandled action " + player.gameAction.action.ToString(), true);
         break;
     }
-    timeToWait = 2f;
+    timeToWait = waitTime;
     turn.order[index] = 255;
   }
 

@@ -1264,7 +1264,7 @@ public class NetworkManager {
 
       // Init the engine
       game.engine = new GameEngine(null);
-      game.engine.InitEnemies(game);
+      game.engine.InitEnemiesMultiplayer(game);
 
       // Update the server and the remote servers
       if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { type = ServerMessages.GameList, gameList = games, num = players.Count, message = "Game \"" + game.Name + "\" created by " + player.Name });

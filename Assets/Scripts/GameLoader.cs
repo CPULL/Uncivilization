@@ -504,7 +504,7 @@ public class GameLoader : MonoBehaviour {
       GD.InitRandomGenerator(seed);
       game.multiplayer = true;
       game.engine = new GameEngine(GD.thePlayer);
-      game.engine.InitEnemies(game);
+      game.engine.InitEnemiesMultiplayer(game);
       GD.thePlayer.TheGame = game;
     }
     else { // Single player
@@ -514,7 +514,7 @@ public class GameLoader : MonoBehaviour {
       };
       game.multiplayer = false;
       // Pick the actual AIs and initialize the Enemies of the engine
-      game.engine.InitEnemies(game, SelectedEnemies);
+      game.engine.InitEnemiesSingleplayer(game, SelectedEnemies);
       GD.thePlayer.TheGame = game;
     }
 
@@ -558,6 +558,8 @@ public class GameLoader : MonoBehaviour {
   }
 
   public void SinglePlayer() {
+    System.Console.Title = "The title has changed!";
+
     hideButton = .5f;
     cameraSize = 3.5f;
     updateQuicklyCam = true;

@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class GameEngine {
   // Used to run a game, on single it will handle the current game, on server mode we should line it to the game itself and handle it server side
-//  private readonly System.Random random = new System.Random();
 
   public GameEngine(Player player) {
     if (player != null) player.OnGame += OnMsgReceived;
@@ -11,7 +10,6 @@ public class GameEngine {
   }
 
   internal int nump = 0;
-  internal byte[] order = new byte[6];
   internal PlayerStatus[] players = new PlayerStatus[6];
   internal bool[] completed = new bool[6];
   public City[] cities = new City[3 * 3 * 6];
@@ -19,7 +17,7 @@ public class GameEngine {
   public PlayerStatus mySelf;
   public Game game;
 
-  public void InitEnemies(Game theGame, Transform selectedEnemies) { // This is for singleplayer
+  public void InitEnemiesSingleplayer(Game theGame, Transform selectedEnemies) { // This is for singleplayer
     game = theGame;
     GD.InitRandomGenerator(theGame.rndSeed);
 
@@ -56,7 +54,7 @@ public class GameEngine {
       completed[i] = false;
   }
 
-  public void InitEnemies(Game theGame) { // This is for multiplayer
+  public void InitEnemiesMultiplayer(Game theGame) { // This is for multiplayer
     game = theGame;
     GD.InitRandomGenerator(theGame.rndSeed);
 
@@ -92,15 +90,6 @@ public class GameEngine {
   }
 
   public void EndTurn(bool multiplayer, Player player, GameAction gameAction) {
-    // MULTIPLAYER (client) -> send action to server and wait
-    // MULTIPLAYER (server) -> wait for all participants to complete, run the logic, send the turn update. When receiving the end turn from a player, broadcast a message to show to clients that the user completed
-    // Logic (directly here for single player)
-    // Calculate all enemy AI actions
-    // Decide the order of the actions
-    // Execute the actions, and broadcast the "results list" that will be applied by all clients
-
-
-    // FIXME we need to understand if we are on the server, in this case the current player does not exists
     if (GD.IsStatus(LoaderStatus.Server, LoaderStatus.ServerBackground)) { // We are on the server
       // This call comes from the client listner
       // We should have the action deserialized
@@ -163,6 +152,12 @@ public class GameEngine {
       CalculatePopulation(p, values);
     }
     CalculateOrder(values);
+    for (int i = 0; i < nump; i++) {
+      if (values.order[i] == 255) continue;
+      PlayerStatus p = players[values.order[i]];
+      if (p == null || p.defeated) continue;
+      CalculateActions(p, values); // Actions are computed after order is defined
+    }
 
     // At this point we should actually execute the action and decide the outcome
     // The outcome should be serialized to be used in the renderer (after sending it, in case of multiplayer)
@@ -222,6 +217,11 @@ public class GameEngine {
 
 
     // Iron ************************************************************************************************************************************************************
+    // FIXME this is for debug
+    values.players[pindex].Iron[0] = 11;
+    values.players[pindex].Iron[1] = 22;
+    values.players[pindex].Iron[2] = 33;
+
     // Aluminum ************************************************************************************************************************************************************
     // Uranium ************************************************************************************************************************************************************
     // Plutonium ************************************************************************************************************************************************************
@@ -262,7 +262,7 @@ public class GameEngine {
 
         int increase = (int)(src.population * 0.05f);
         if (increase == 0) increase = 1;
-        if (src.radioactive) {
+        if (src.status == CityStatus.Radioactive) {
           increase = -1;
         }
         else if (src.population + increase > 25 && !src.improvements[(int)ItemType.IHOUS - (int)ProductionType.Improvement]) {
@@ -273,13 +273,20 @@ public class GameEngine {
           dst.population += increase;
         if (dst.population <= 0) {
           dst.population = 0;
-          dst.status = City.Status.Destroyed;
+          dst.status = src.status == CityStatus.Radioactive ? CityStatus.RadioWaste : CityStatus.Destroyed;
         }
       }
     }
   }
 
   private void CalculateOrder(GameEngineValues values) {
+    // The order is a byte[6] with the index of each player in order of action
+    byte[] order = new byte[6];
+    for (int i = 0; i < 6; i++) {
+      order[i] = 255;
+      values.order[i] = 255;
+    }
+
     // Pick all players that are defending or doing social, randomize them and place them at the begin
     // Pick all other players, randomize, and place after the first ones
     List<int> list = new List<int>();
@@ -299,7 +306,7 @@ public class GameEngine {
       }
     }
     for (int i = 0; i < pos; i++)
-      values.order[i] =(byte) list[i];
+      order[i] =(byte) list[i];
 
     list.Clear();
     for (int i = 0; i < nump; i++) {
@@ -317,11 +324,79 @@ public class GameEngine {
       }
     }
     for (int i = 0; i < list.Count; i++)
-      values.order[i + pos] = (byte)list[i];
+      order[i + pos] = (byte)list[i];
 
-    for (int i = pos + list.Count; i < 6; i++)
-      values.order[i] = 255;
+    // Now use the oder array to define the order of the players
+    byte min;
+    int index = 0;
+    pos = 0;
+    while (index != -1) {
+      index = -1;
+      min = 255;
+      for (int i = 0; i < 6; i++) {
+        if (min > order[i]) {
+          min = order[i];
+          index = i;
+        }
+      }
+      if (index != -1) {
+        values.order[pos] = (byte)index;
+        order[index] = 255;
+        pos++;
+      }
+    }
   }
+
+  private void CalculateActions(PlayerStatus p, GameEngineValues values) {
+    // Depending on the action we may need to do something
+    switch (p.gameAction.action) {
+      case ActionType.Nothing: break;
+      case ActionType.FindResources: // Double the production of resources and add some extra random resource based on the population size
+        ExecuteFindResources(p, values);
+        break;
+      case ActionType.ResearchTechnology: break;
+      case ActionType.BuildImprovement: break;
+      case ActionType.Social: break;
+      case ActionType.BuildWeapons: break;
+      case ActionType.DeployWeapons: break;
+      case ActionType.UseWeapons: break;
+      case ActionType.Propaganda: break;
+      case ActionType.Diplomacy: break;
+      case ActionType.SettleCity: break;
+      case ActionType.Denucrlearize: break;
+      case ActionType.Defend: break;
+    }
+  }
+
+  private void ExecuteFindResources(PlayerStatus p, GameEngineValues values) {
+    values.players[p.index].Food[1] *= 2;
+    values.players[p.index].Iron[1] *= 2;
+    values.players[p.index].Aluminum[1] *= 2;
+    values.players[p.index].Uranium[1] *= 2;
+    values.players[p.index].Plutonium[1] *= 2;
+    values.players[p.index].Hydrogen[1] *= 2;
+    values.players[p.index].Plastic[1] *= 2;
+    values.players[p.index].Electronics[1] *= 2;
+    values.players[p.index].Composite[1] *= 2;
+    values.players[p.index].FossilFuels[1] *= 2;
+
+    int population = 0;
+    foreach (int cityIndex in p.cities) {
+      population += cities[cityIndex].population;
+    }
+
+    values.players[p.index].Food[1] += GD.GetRandom(0, population);
+    values.players[p.index].Iron[1] += GD.GetRandom(0, 2 * population / 3);
+    values.players[p.index].Aluminum[1] += GD.GetRandom(0, population / 3);
+    values.players[p.index].Uranium[1] += GD.GetRandom(0, population / 4);
+    values.players[p.index].Plutonium[1] += GD.GetRandom(0, population / 8);
+    values.players[p.index].Hydrogen[1] += GD.GetRandom(0, population / 10);
+    values.players[p.index].Plastic[1] += GD.GetRandom(0, population / 5);
+    values.players[p.index].Electronics[1] += GD.GetRandom(0, population / 7);
+    values.players[p.index].Composite[1] += GD.GetRandom(0, population / 20);
+    values.players[p.index].FossilFuels[1] += GD.GetRandom(0, population / 9);
+  }
+
 
   public void Destroy() {
     players = null;
@@ -448,15 +523,13 @@ public class CityVals {
   public byte pos;
   public long improvementsBF;
   public int population;
-  public City.Status status;
-  public bool radioactive;
+  public CityStatus status;
   public byte owner;
 
   public CityVals(City src, byte owner) {
     pos = (byte)src.pos;
     population = src.population;
     status = src.status;
-    radioactive = src.radioactive;
     this.owner = owner;
     improvementsBF = 0;
     for (int i = 0; i < src.improvements.Length; i++)
@@ -467,8 +540,7 @@ public class CityVals {
     /*
       1 // pos
       8 // bitfield improvements
-      4 // population
-      1 // owner + radioactive + status
+      1 // owner + status
     */
 
     byte[] res = new byte[14];
@@ -482,7 +554,7 @@ public class CityVals {
     for (int i = 0; i < 4; i++)
       res[9 + i] = d[i];
 
-    byte stat = (byte)((byte)status + (radioactive ? 4 : 0) + (owner * 8));
+    byte stat = (byte)(owner + 8 * (byte)status);
     res[9 + 4] = stat;
 
     return res;
@@ -492,8 +564,7 @@ public class CityVals {
     pos = data[start];
     improvementsBF = System.BitConverter.ToInt64(data, start + 1);
     population = System.BitConverter.ToInt32(data, start + 9);
-    status = (City.Status)(data[start + 9 + 4] & 3);
-    radioactive = (data[start + 9 + 4] & 4) == 4;
-    owner = (byte)((data[start + 9 + 4] & 248) >> 3);
+    owner = (byte)(data[start + 9 + 4] & 3);
+    status = (CityStatus)((data[start + 9 + 4] & 248) >> 3);
   }
 }

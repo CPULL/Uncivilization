@@ -1,12 +1,31 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.U2D;
 using UnityEngine.UI;
 
+public enum CityStatus { 
+  Empty = 0, // Spot is not used
+  Owned = 1, // The city is owned by somebody and not destroyed
+  Radioactive = 2, // Owned by somebody and radioactive
+  Destroyed = 3, // Crater, still owned, but can be reconquered
+  RadioWaste = 4, // Destroyed and radioactive
+};
+
+public enum CityHighlight { 
+  Owned, // Full color and selectable if the player is the owner
+  Settling, // Full color and selectable only on the areas where is possible to settle
+  Denucrearise, // Full color and selectable only on the areas where is possible to denuclearize
+  Blasting, // Full color and selectable only on the areas that is pobbile to blast (maybe increase for the range of weapons)
+  None 
+};
+
+// MIX and match these two. If needed add other values
+
+
 public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, IPointerExitHandler {
-  public enum Status { Empty=0, Destroyed=1, Owned=2 };
   public Image city;
   public Image radiation;
   public TextMeshProUGUI popText;
@@ -19,20 +38,23 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   public int population;
   public bool[] improvements;
   public int sector;
-  public Status status;
-  public bool radioactive;
+  public CityStatus status;
+  public CityHighlight highlight;
   public int px, py;
   private bool areWeOver = false;
 
   private Color transparency = new Color32(0, 0, 0, 0);
   private Color fullVisible = new Color32(255, 255, 255, 255);
+  private Color halfVisible = new Color32(100, 100, 100, 200);
+
+  public Action<object, EventArgs> OnClick { get; internal set; }
 
   public City Init(int position) {
     radiation.gameObject.SetActive(false);
     city.gameObject.SetActive(true); // FIXME set to false, but use it to debug the positions
     popText.text = "";
     varText.text = "";
-    status = Status.Empty;
+    status = CityStatus.Empty;
     improvements = new bool[19];
     for (int i = 0; i < 19; i++) {
       improvements[i] = false;
@@ -58,46 +80,72 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     population = pop;
     popText.text = pop + "M";
     owner = own;
-    status = Status.Owned;
+    status = CityStatus.Owned;
     SetSprite();
   }
 
   private void SetSprite() {
-    if (status == Status.Empty) {
+    // Empty -> never shown
+    if (status == CityStatus.Empty) {
       city.sprite = null;
       city.color = transparency;
-      radiation.sprite = null;
-      radiation.color = transparency;
+      radiation.gameObject.SetActive(false);
       popText.text = "";
       varText.text = "";
-      for (int i = 0; i < 19; i++) 
+      for (int i = 0; i < 19; i++)
         Improvements[i].enabled = false;
       return;
     }
-    if (owner == null) {
-      GD.DebugLog("Empty owner for an non-empty city!", GD.LT.Error); // FIXME
-      return;
-    }
-    city.color = fullVisible;
-    if (settling) {
-      if (areWeOver)
-        city.sprite = items.GetSprite("Items_128");
-      else
-        city.sprite = items.GetSprite("Items_127");
-      return;
-    }
-    if (forDenuclearization) {
-      if (areWeOver)
-        city.sprite = items.GetSprite("Items_105");
-      else
-        city.sprite = items.GetSprite("Items_" + 9 + 16 * owner.index);
-      return;
+
+    // Owned and not radioactive, but the border will depend on the highlightstatus
+    if (status == CityStatus.Owned || status == CityStatus.Radioactive) {
+      radiation.gameObject.SetActive(status == CityStatus.Radioactive);
+      switch (highlight) {
+        case CityHighlight.Owned: // Selectable if the player is the owner, half color if not the owner
+          if (owner.id == GD.thePlayer.ID) {
+            city.color = fullVisible;
+            for (int i = 0; i < 19; i++)
+              Improvements[i].enabled = improvements[i];
+            city.sprite = items.GetSprite("Items_" + CalculateSpriteOnPopulation());
+          }
+          else {
+            city.color = halfVisible;
+            for (int i = 0; i < 19; i++)
+              Improvements[i].enabled = improvements[i] && false; // FIXME understand if we have the technology for intellicence
+            city.sprite = items.GetSprite("Items_" + CalculateSpriteOnPopulation());
+          }
+          break;
+
+        case CityHighlight.Settling: // FIXME
+          break;
+        case CityHighlight.Denucrearise: // FIXME
+          break;
+        case CityHighlight.Blasting: // FIXME
+          break;
+        case CityHighlight.None: // FIXME
+          city.color = fullVisible;
+          for (int i = 0; i < 19; i++)
+            Improvements[i].enabled = improvements[i] && true; // FIXME understand if we have the technology for intellicence
+          city.sprite = items.GetSprite("Items_" + CalculateSpriteOnPopulation());
+          break;
+      }
     }
 
-    // FIXME the improvements should be visible only if the city is ours, or a friend, or we have intelligence perk
-    for (int i = 0; i < 19; i++)
-      Improvements[i].enabled = improvements[i];
+    if (status == CityStatus.Destroyed || status == CityStatus.RadioWaste) {
+      radiation.gameObject.SetActive(status == CityStatus.RadioWaste);
+      if (highlight == CityHighlight.Denucrearise) {
+        if (areWeOver)
+          city.sprite = items.GetSprite("Items_105"); // Flag over crater
+        else
+          city.sprite = items.GetSprite("Items_" + 9 + 16 * owner.index); // Flag over crater with owner color
+      }
+      else
+        city.sprite = items.GetSprite("Items_" + CalculateSpriteOnPopulation());
+    }
 
+  }
+
+  private int CalculateSpriteOnPopulation() {
     int s;
     if (population == 0) s = 0;
     else if (population < 5) s = 1;
@@ -110,35 +158,38 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     else s = 8;
     if (areWeOver) s += 96;
     else s += 16 * owner.index;
-    city.sprite = items.GetSprite("Items_" + s);
+    return s;
   }
 
   public void OnPointerEnter(PointerEventData eventData) {
-    areWeOver = true;
-    SetSprite();
+    // Depending on the action we may want to highlight the city or not
+    PlayerAction action = GameRenderer.GetAction();
+    if (action == PlayerAction.Settle) { // Highlight only empty areas that are close to a city of ours
+      // FIXME
+    }
+    else if (action == PlayerAction.Denuclearize) { // Highlight only if city not empty and readioactive and ours, or any empty radioactive spot
+      // FIXME
+    }
+    else if (action == PlayerAction.BuildImps) { // Highlight only if the city is ours and the improvement (if selected) is not yet in the city. On click select the city for the improvement
+      if ((status != CityStatus.Owned && status != CityStatus.Radioactive) || owner.id != GD.thePlayer.ID) return;
+      areWeOver = true;
+      SetSprite();
+    }
+    else { // Action not selected: highlight, on click base details. More info only if we have intelligence
+      areWeOver = true;
+      SetSprite();
+    }
   }
 
   public void OnPointerClick(PointerEventData eventData) {
-    if (!areWeOver || status == Status.Empty) return;
+    if (!areWeOver || status == CityStatus.Empty) return;
     areWeOver = false;
     SetSprite();
-    // Update the UI with a description of the city (size, owner, radiation)
-    string msg = "<b>City</b>\nOwner: <sprite=" + owner.avatar +"> "  + owner.name + "\nPopulation: " + population;
-    if (radioactive) msg += "\n<i>Radioactive!</i>";
-    // FIXME list city improvements
-    GameRenderer.UpdateStatusMessage(msg, city.sprite);
+
+    // Send a message to the Renderer to handle what to do
+    OnClick?.Invoke(this, null);
     areWeOver = true;
     SetSprite();
-    // We may need to set the target city for the GameRenderer
-    GD.selectedCity = pos;
-
-    // Have the owner (if AI) to say something
-    if (owner.isAI && !owner.defeated) {
-      if (status == Status.Destroyed)
-        if (owner.refEnemy != null) owner.refEnemy.Say("This city was mine!", BalloonDirection.TL);
-      else
-        if (owner.refEnemy != null) owner.refEnemy.Say("This city is mine!", BalloonDirection.TL);
-    }
   }
 
   public void OnPointerExit(PointerEventData eventData) {
@@ -147,26 +198,18 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
 
-  public void Decode(byte[] data, int start, GameEngine engine) {
-    pos = data[start];
-    long bitfield = System.BitConverter.ToInt64(data, start + 1);
-    for (int i = 0; i < improvements.Length; i++)
-      improvements[i] = (bitfield & (~(1 << i))) == 1;
-    int var = System.BitConverter.ToInt32(data, start + 9);
-    AddPopulation(var - population);
-    status = (Status)(data[start + 9 + 4] & 3);
-    SetRadioactive((data[start + 9 + 4] & 4) == 4);
-    int idx = (data[start + 9 + 4] & 248) >> 3;
-    owner = engine.players[idx];
-  }
-
   public void SetValues(CityVals cv, PlayerStatus ownerval) {
     status = cv.status;
     owner = ownerval;
     if (population != cv.population) AddPopulation(cv.population - population);
-    SetRadioactive(cv.radioactive);
     for (int i = 0; i < improvements.Length; i++)
       improvements[i] = (cv.improvementsBF & (~(1 << i))) == 1;
+    SetSprite();
+  }
+
+
+  public void Highlight(CityHighlight hlg) {
+    highlight = hlg;
     SetSprite();
   }
 
@@ -179,11 +222,6 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
 
   public float posx, posy;
   private IEnumerator anim = null;
-  public bool settling = false;
-  public bool forDenuclearization = false;
-
-
-
 
   public string GetSpriteName() {
     int s;
@@ -205,7 +243,7 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
   public bool IsDestroyed() {
-    return status == Status.Destroyed;
+    return status == CityStatus.Destroyed || status == CityStatus.RadioWaste;
   }
 
   public int GetPopulation() {
@@ -268,9 +306,8 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     }
     population -= (int)dead;
     if (population <= 0) {
-      radioactive = radio;
       radiation.gameObject.SetActive(radio);
-      status = Status.Destroyed;
+      status = radio ? CityStatus.RadioWaste : CityStatus.Destroyed;
       population = 0;
       popText.text = "";
       SetSprite();
@@ -282,12 +319,6 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     return false;
   }
 
-  public void SetRadioactive(bool rad) {
-    radioactive = rad;
-    radiation.gameObject.SetActive(rad);
-    SetSprite();
-  }
-
   public void Obliterate(bool radioactive) {
     if (population != 0) {
       if (anim != null) StopCoroutine(anim);
@@ -296,9 +327,8 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     }
     population = 0;
     popText.text = "";
-    status = Status.Destroyed;
+    status = radioactive ? CityStatus.RadioWaste : CityStatus.Destroyed;
     SetSprite();
-    this.radioactive = this.radioactive || radioactive;
     radiation.gameObject.SetActive(radioactive);
   }
 
@@ -307,49 +337,35 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
   internal bool IsInhabitedMoreThanOne(PlayerStatus owner) {
-    return (this.owner == owner && population > 1 && !radioactive);
+    return (this.owner == owner && population > 1 && status != CityStatus.Radioactive);
   }
 
   internal bool IsInhabited(PlayerStatus owner) {
-    return (this.owner == owner && population > 0 && !radioactive);
-  }
-
-  internal City PossibleSettling(bool set) {
-    settling = set;
-    SetSprite();
-    return this;
+    return (this.owner == owner && population > 0 && status != CityStatus.Radioactive);
   }
 
   internal void MakeAbitable(int pop, PlayerStatus own) {
     if (pop == 0) return;
     if (pop < 0) pop = -pop;
     owner = own;
-    status = Status.Owned;
-    radioactive = false;
-    settling = false;
+    status = CityStatus.Owned;
     SetSprite();
     AddPopulation(pop);
   }
 
-  internal void SetDenuclearization(bool v) {
-    forDenuclearization = v;
-    SetSprite();
-  }
 
   internal void Assign(PlayerStatus owner) {
-    radioactive = false;
+    status = CityStatus.Owned;
     this.owner = owner;
     radiation.gameObject.SetActive(false);
-    forDenuclearization = false;
     SetSprite();
   }
 
   internal void ResetCity(PlayerStatus owner) {
-    radioactive = false;
+    status = CityStatus.Owned;
     this.owner = owner;
     if (population < 0) population = 0;
     radiation.gameObject.SetActive(false);
-    forDenuclearization = false;
     SetSprite();
   }
 
@@ -359,15 +375,16 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
   internal bool IsValid(int player) {
-    return owner.index == player && status == Status.Owned && population > 0;
+    return owner.index == player && status == CityStatus.Owned && population > 0;
   }
 
   internal int Owned(int player) {
-    if (owner.index == player && status == Status.Owned && population > 0) return 1;
+    if (owner.index == player && status == CityStatus.Owned && population > 0) return 1;
     return 0;
   }
   internal int NotMeAsOwner(int player) {
-    if (owner.index != player && owner.index != -1 && status == Status.Owned && population > 0) return owner.index;
+    if (owner.index != player && owner.index != -1 && status == CityStatus.Owned && population > 0) return owner.index;
     return -1;
   }
+
 }
