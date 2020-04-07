@@ -1,13 +1,13 @@
 
 
 TODO NOW ***************************
-Add code to show what a player did
-Add code to research techs and to build improvements
-Add the description and dependencies for the techs
-Add the prerequisites to all advanced items
+When doing a turn, the data from the previous turn is accepted. Re-init the gameaction when the turn starts
+
 
 
 TODO ***************************
+Add the description and dependencies for the techs
+Add the prerequisites to all advanced items
 If a player leaves the server make it die in multiplayer (complete when the game will be playable)
 Add credits (special mention for Ollie)
 Add more avatars
@@ -15,7 +15,6 @@ Implement view panels (in progress)
 Add server logs on the remote network, when writing something on the logs send it also to remote managers
 Add global balloon for game
 Add "what is going on" for the game (typing text)
-Add a sprite resource inside the Enemy class and set it to the avatar of human players or basic sprite[0] of AIs
 When all players leave the game, set it as complete. In case AIs are still alive set a winner
 
 IMPROVEMENTS ***************************
@@ -27,20 +26,10 @@ CHECK ***************************
 
 
 BUGS ***************************
-When turn actions are all shown, reset the game action.
+If we create a game, then destroy it, then create a new one, we have problems joining it
 
+When restarting a game we have an error because the balloon was destroyed
 
-OK, we need something for the cities.
-> Be able to understand which are ours cities
-> be able to highlight cities and empty spaces
-> Be able to disable and gray out other cities
-
-
-
-
-
-The dependency name on techs should be made wider
-Icons for buildings seems to be not valid for thechs dependencies
 
 
 If we leave the game, the game list still shows the game as "playing" (it may be normal because the game can still have humans inside) >> Add game status "Abandoned"

@@ -108,7 +108,6 @@ public class PlayerStatus {
     int len = 2 + // len
               8 + // id
               8 + // techs availability as bitfield
-              8 + // improvements availability as bitfield
               8 + // bitfiled for ownership of cities + defeated flag
               10 * 4 * 3 + // resources (10 types * 3 values * 4 bytes)
               GD._GameActionLen;

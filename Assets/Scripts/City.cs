@@ -164,13 +164,13 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   public void OnPointerEnter(PointerEventData eventData) {
     // Depending on the action we may want to highlight the city or not
     PlayerAction action = GameRenderer.GetAction();
-    if (action == PlayerAction.Settle) { // Highlight only empty areas that are close to a city of ours
+    if (action == PlayerAction.SettleNewCity) { // Highlight only empty areas that are close to a city of ours
       // FIXME
     }
     else if (action == PlayerAction.Denuclearize) { // Highlight only if city not empty and readioactive and ours, or any empty radioactive spot
       // FIXME
     }
-    else if (action == PlayerAction.BuildImps) { // Highlight only if the city is ours and the improvement (if selected) is not yet in the city. On click select the city for the improvement
+    else if (action == PlayerAction.BuildCityImprovements) { // Highlight only if the city is ours and the improvement (if selected) is not yet in the city. On click select the city for the improvement
       if ((status != CityStatus.Owned && status != CityStatus.Radioactive) || owner.id != GD.thePlayer.ID) return;
       areWeOver = true;
       SetSprite();
@@ -203,7 +203,7 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     owner = ownerval;
     if (population != cv.population) AddPopulation(cv.population - population);
     for (int i = 0; i < improvements.Length; i++)
-      improvements[i] = (cv.improvementsBF & (~(1 << i))) == 1;
+      improvements[i] = (cv.improvementsBF & (1 << i)) != 0;
     SetSprite();
   }
 

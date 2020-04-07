@@ -513,6 +513,7 @@ public class GameLoader : MonoBehaviour {
         engine = new GameEngine(GD.thePlayer)
       };
       game.multiplayer = false;
+      game.rndSeed = Random.Range(-75000, 75000); // We will not receive a random seed from the server, so just create a local one, we are in SinglePlayer
       // Pick the actual AIs and initialize the Enemies of the engine
       game.engine.InitEnemiesSingleplayer(game, SelectedEnemies);
       GD.thePlayer.TheGame = game;

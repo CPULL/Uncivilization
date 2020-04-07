@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GameEngine {
@@ -50,6 +51,29 @@ public class GameEngine {
       game.Players[b] = tmpsp;
     }
 
+    int[] sectors = new int[6];
+    for (int i = 0; i < 6; i++) sectors[i] = i;
+    for (int i = 0; i < 1000; i++) {
+      int a = GD.GetRandom(0, 6);
+      int b = GD.GetRandom(0, 6);
+      int tmp = sectors[a];
+      sectors[a] = sectors[b];
+      sectors[b] = tmp;
+    }
+
+    // Assign a single city (population proportional to the difficulty) to each player
+    for (int i = 0; i < nump; i++) {
+      PlayerStatus ps = players[i];
+      int pos = 1 + 9 + (sectors[i] < 3 ? sectors[i] * 3 : sectors[i] * 3 + 9 * 2);
+      int cx = pos % 9;
+      int cy = pos / 9;
+      if (ps.isAI)
+        cities[pos].Set(5 + 5 * GD.difficulty, players[players[i].index]);
+      else
+        cities[pos].Set(10 - GD.difficulty, players[players[i].index]);
+      ps.cities.Add(pos);
+    }
+
     for (int i = 0; i < nump; i++)
       completed[i] = false;
   }
@@ -78,6 +102,29 @@ public class GameEngine {
       }
     }
 
+    int[] sectors = new int[6];
+    for (int i = 0; i < 6; i++) sectors[i] = i;
+    for (int i = 0; i < 1000; i++) {
+      int a = GD.GetRandom(0, 6);
+      int b = GD.GetRandom(0, 6);
+      int tmp = sectors[a];
+      sectors[a] = sectors[b];
+      sectors[b] = tmp;
+    }
+
+    // Assign a single city (population proportional to the difficulty) to each player
+    for (int i = 0; i < nump; i++) {
+      PlayerStatus ps = players[i];
+      int pos = 1 + 9 + (sectors[i] < 3 ? sectors[i] * 3 : sectors[i] * 3 + 9 * 2);
+      int cx = pos % 9;
+      int cy = pos / 9;
+      if (ps.isAI)
+        cities[pos].Set(5 + 5 * GD.difficulty, players[players[i].index]);
+      else
+        cities[pos].Set(10 - GD.difficulty, players[players[i].index]);
+      ps.cities.Add(pos);
+    }
+
     for (int i = 0; i < nump; i++)
       completed[i] = false;
   }
@@ -92,7 +139,6 @@ public class GameEngine {
   public void EndTurn(bool multiplayer, Player player, GameAction gameAction) {
     if (GD.IsStatus(LoaderStatus.Server, LoaderStatus.ServerBackground)) { // We are on the server
       // This call comes from the client listner
-      // We should have the action deserialized
       // Find the player in the player list
       for (int i = 0; i < nump; i++)
         if (players[i].id == player.ID) {
@@ -354,8 +400,12 @@ public class GameEngine {
       case ActionType.FindResources: // Double the production of resources and add some extra random resource based on the population size
         ExecuteFindResources(p, values);
         break;
-      case ActionType.ResearchTechnology: break;
-      case ActionType.BuildImprovement: break;
+      case ActionType.ResearchTechnology:
+        ExecuteResearchTechnology(p);
+        break;
+      case ActionType.BuildImprovement:
+        ExecuteBuildImprovement(p, values);
+        break;
       case ActionType.Social: break;
       case ActionType.BuildWeapons: break;
       case ActionType.DeployWeapons: break;
@@ -398,6 +448,24 @@ public class GameEngine {
   }
 
 
+  private void ExecuteResearchTechnology(PlayerStatus p) {
+    p.techs[p.gameAction.val].available = true;
+  }
+
+  private void ExecuteBuildImprovement(PlayerStatus p, GameEngineValues values) {
+    long imp = 0;
+    for (int i = 0; i < cities[p.gameAction.targetCity].improvements.Length; i++)
+      if (cities[p.gameAction.targetCity].improvements[i])
+        imp |= (long)(1 << i);
+
+    imp |= values.cities[p.gameAction.targetCity].improvementsBF;
+    imp = (imp) | ((long)(1 << p.gameAction.val));
+    values.cities[p.gameAction.targetCity].improvementsBF = imp;
+  }
+
+
+
+
   public void Destroy() {
     players = null;
     completed = null;
@@ -430,9 +498,18 @@ public class GameEngineValues {
     gamename = engine.game.Name;
     order = new byte[6];
     cities = new CityVals[9 * 6];
+    for (int i = 0; i < 9 * 6; i++)
+      if (engine.cities[i].status != CityStatus.Empty)
+        cities[i] = new CityVals(engine.cities[i], GetCityOwnerByte(engine, engine.cities[i].owner));
     players = new PlayerStatus[6];
     for (int i = 0; i < 6; i++)
       players[i] = engine.players[i];
+  }
+
+  private byte GetCityOwnerByte(GameEngine engine, PlayerStatus owner) {
+    for (int i = 0; i < engine.players.Length; i++)
+      if (engine.players[i].id == owner.id) return (byte)engine.players[i].index;
+    return 255;
   }
 
   public byte[] Serialize() {
@@ -465,13 +542,13 @@ public class GameEngineValues {
     for (int i = 0; i < cities.Length; i++) {
       if (cities[i] == null) {
         for (int j = 0; j < 14; j++) res[pos + j] = 255;
-        pos += 14;
-        continue;
       }
-      d = cities[i].Serialize();
-      for (int j = 0; j < d.Length; j++)
-        res[pos + j] = d[j];
-      pos += d.Length;
+      else {
+        d = cities[i].Serialize();
+        for (int j = 0; j < d.Length; j++)
+          res[pos + j] = d[j];
+      }
+      pos += 14;
     }
     for (int i = 0; i < 6; i++) {
       PlayerStatus ps = players[i];
@@ -540,6 +617,7 @@ public class CityVals {
     /*
       1 // pos
       8 // bitfield improvements
+      4 // population
       1 // owner + status
     */
 

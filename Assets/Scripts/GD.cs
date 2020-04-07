@@ -10,7 +10,6 @@ public class GD : MonoBehaviour {
   public const int _PlayerStatusLen = 2 + // len
               8 + // id
               8 + // techs availability as bitfield
-              8 + // improvements availability as bitfield
               8 + // bitfiled for ownership of cities + defeated flag
               10 * 4 * 3 + // resources (10 types * 3 values * 4 bytes)
               _GameActionLen;
@@ -331,7 +330,7 @@ public class GD : MonoBehaviour {
       foreach (char c in txt)
         if (c != '\n' && (char.IsControl(c) || c == '\0')) {
           System.Diagnostics.StackTrace st = new System.Diagnostics.StackTrace(true);
-          txt = "DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> \n";
+          txt = "***" + txt + "***\nDEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> DEBUG >> \n";
           for (int i = 0; i < st.FrameCount && i < 8; i++) {
             System.Diagnostics.StackFrame frame = st.GetFrame(i);
             string file = frame.GetFileName();
