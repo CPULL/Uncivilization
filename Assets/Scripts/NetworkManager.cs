@@ -2,13 +2,12 @@
 using System.Threading;
 using System.Net;
 using System.Net.Sockets;
-using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 
 public class NetworkManager {
   private List<Game> games;
-  private List<Player> players;
+  private List<PlayerHandler> players;
   private List<Game> runningGames;
 
   private IPAddress serverIP = null;
@@ -21,9 +20,17 @@ public class NetworkManager {
   private readonly System.Random random = new System.Random();
 
 
+  private List<PlayerDef> GetPlayersList() {
+    List<PlayerDef> res = new List<PlayerDef>();
+    foreach (PlayerHandler p in players)
+      res.Add(p.player.def);
+    return res;
+  }
+
+
   public void StartUpServer() {
     games = new List<Game>();
-    players = new List<Player>();
+    players = new List<PlayerHandler>();
     runningGames = new List<Game>();
     // Set our IP address and start the listener
     try {
@@ -80,7 +87,7 @@ public class NetworkManager {
 
   #region Client ************************************************************************************************************************************************************************************
 
-  public string PingServer(Player player) {
+  public string PingServer(PlayerHandler player) {
     if (player.tcpClient == null || !player.tcpClient.Connected) return "No connection to the server!";
     try {
       GD.DebugLog("Pinging server", GD.LT.Debug);
@@ -101,7 +108,7 @@ public class NetworkManager {
     }
   }
 
-  public string ConnectToServer(Player player, string address, int port) {
+  public string ConnectToServer(PlayerHandler player, string address, int port) {
     IPAddress.TryParse(address, out serverIP);
     serverPort = port;
     TcpClient tcpClient = new TcpClient {
@@ -111,7 +118,7 @@ public class NetworkManager {
     try {
       GD.DebugLog("Connecting to server", GD.LT.Debug);
       tcpClient.Connect(address, port);
-      byte[] playerData = player.Stringify();
+      byte[] playerData = player.player.def.Serialize();
       byte[] cmd = GenerateCommand(NetworkCommand.Connect, playerData.Length);
       for (int i = 0; i < playerData.Length; i++)
         cmd[16 + i] = playerData[i];
@@ -153,7 +160,7 @@ public class NetworkManager {
     }
   }
 
-  public string ConnectToRemoteServer(Player player, string password, string address, int port) {
+  public string ConnectToRemoteServer(PlayerHandler player, string password, string address, int port) {
     IPAddress.TryParse(address, out serverIP);
     serverPort = port;
     TcpClient tcpClient = new TcpClient {
@@ -163,7 +170,7 @@ public class NetworkManager {
     try {
       GD.DebugLog("Connecting to remote server", GD.LT.Debug);
       tcpClient.Connect(address, port);
-      byte[] playerData = player.Stringify();
+      byte[] playerData = player.player.def.Serialize();
       byte[] passwordBin = System.Text.Encoding.UTF8.GetBytes(password);
       byte[] cmd = GenerateCommand(NetworkCommand.ConnectRemote, playerData.Length + passwordBin.Length + 1);
 
@@ -214,24 +221,24 @@ public class NetworkManager {
     }
   }
 
-  public void DisconnectFromServer(Player player) {
+  public void DisconnectFromServer(PlayerHandler player) {
     serverConnected = false;
     if (player.tcpClient != null && player.tcpClient.Connected) {
       GD.DebugLog("Disconnecting from server", GD.LT.Debug);
-      byte[] playerData = player.Stringify();
+      byte[] playerData = player.player.def.Serialize();
       byte[] cmd = GenerateCommand(NetworkCommand.Goodbye, playerData.Length);
       for (int i = 0; i < playerData.Length; i++)
         cmd[16 + i] = playerData[i];
       player.stream.Write(cmd, 0, cmd.Length);
     }
-    OnServerMessage?.Invoke(this, new ServerMessage { message = player.Name + " disconnected.", type = ServerMessages.Info });
+    OnServerMessage?.Invoke(this, new ServerMessage { message = player + " disconnected.", type = ServerMessages.Info });
     player.stream?.Close();
     player.tcpClient.Close();
     player.stream = null;
     player.tcpClient = null;
   }
 
-  public void GetGameList(Player player) {
+  public void GetGameList(PlayerHandler player) {
     if (player == null || player.tcpClient == null || !player.tcpClient.Connected) return;
     try {
       GD.DebugLog("Getting game list", GD.LT.Debug);
@@ -242,7 +249,7 @@ public class NetworkManager {
     }
   }
 
-  public void UpdateLists(Player player, bool showingGames) {
+  public void UpdateLists(PlayerHandler player, bool showingGames) {
     if (player == null || player.tcpClient == null || !player.tcpClient.Connected) return;
     try {
       if (showingGames) {
@@ -266,32 +273,38 @@ public class NetworkManager {
     }
   }
 
-  public string CreateGameClient(string name, Player player, int difficulty, int numplayers, int numais) {
-    if (player.tcpClient == null || !player.tcpClient.Connected) return "You are not connected to a server!";
+  public string CreateGameClient(string name, PlayerHandler player, int difficulty, int numplayers, int numais, out ulong gameid) {
+    if (player.tcpClient == null || !player.tcpClient.Connected) {
+      gameid = 0;
+      return "You are not connected to a server!";
+    }
     try {
       GD.DebugLog("Creating game " + name, GD.LT.Debug);
-      Game game = new Game(name, player, difficulty, numplayers + 2, numais);
+      Game game = new Game(name, player.player, difficulty, numplayers + 2, numais);
       byte[] gameData = game.Serialize();
       byte[] cmd = GenerateCommand(NetworkCommand.CreateGame, gameData.Length);
       for (int i = 0; i < gameData.Length; i++)
         cmd[16 + i] = gameData[i];
       player.stream = player.tcpClient.GetStream();
       player.stream.Write(cmd, 0, cmd.Length);
+      gameid = game.id;
       return null;
     } catch (IOException e) {
       GD.DebugLog("Error in creating the game: " + e.Message, GD.LT.Debug);
+      gameid = 0;
       return "Error: " + e.Message;
     } catch (SocketException e) {
       GD.DebugLog("Error in creating the game: " + e.Message, GD.LT.Debug);
+      gameid = 0;
       return "Error: " + e.Message;
     }
   }
 
-  public string JoinGameClient(Player player, string gamename) {
+  public string JoinGameClient(PlayerHandler player, ulong id) {
     if (player.tcpClient == null || !player.tcpClient.Connected) return "!You are not connected to a server!";
     try {
-      GD.DebugLog("Joining game " + gamename, GD.LT.Debug);
-      byte[] gameData = System.Text.Encoding.UTF8.GetBytes(gamename.Trim());
+      GD.DebugLog("Joining game " + id, GD.LT.Debug);
+      byte[] gameData = BitConverter.GetBytes(id);
       byte[] cmd = GenerateCommand(NetworkCommand.Join, gameData.Length);
       for (int i = 0; i < gameData.Length; i++)
         cmd[16 + i] = gameData[i];
@@ -307,12 +320,11 @@ public class NetworkManager {
     }
   }
 
-  public string LeaveGameClient(Player player, string gamename) {
-    if (string.IsNullOrWhiteSpace(gamename)) return "";
+  public string LeaveGameClient(PlayerHandler player, ulong id) {
     if (player.tcpClient == null || !player.tcpClient.Connected) return "!You are not connected to a server!";
     try {
-      GD.DebugLog("leaving game " + gamename, GD.LT.Debug);
-      byte[] gameData = System.Text.Encoding.UTF8.GetBytes(gamename.Trim());
+      GD.DebugLog("leaving game " + id, GD.LT.Debug);
+      byte[] gameData = BitConverter.GetBytes(id);
       byte[] cmd = GenerateCommand(NetworkCommand.Leave, gameData.Length);
       for (int i = 0; i < gameData.Length; i++)
         cmd[16 + i] = gameData[i];
@@ -326,20 +338,19 @@ public class NetworkManager {
       GD.DebugLog("Error in leaving a game: " + e.Message, GD.LT.Debug);
       return "!Error: " + e.Message;
     }
-
   }
 
-  public string DeleteGameClient(Player player, string gamename) {
+  public string DeleteGameClient(PlayerHandler player, ulong id) {
     if (player.tcpClient == null || !player.tcpClient.Connected) return "!You are not connected to a server!";
     try {
       GD.DebugLog("Deleting game gamename", GD.LT.Debug);
-      byte[] gameData = System.Text.Encoding.UTF8.GetBytes(gamename.Trim());
+      byte[] gameData = BitConverter.GetBytes(id);
       byte[] cmd = GenerateCommand(NetworkCommand.DeleteGame, gameData.Length);
       for (int i = 0; i < gameData.Length; i++)
         cmd[16 + i] = gameData[i];
       player.stream.Write(cmd, 0, cmd.Length);
 
-      return "DELETING game \"" + gamename + "\"";
+      return "DELETING game \"" + id + "\"";
     } catch (IOException e) {
       GD.DebugLog("Error in deleting a game: " + e.Message, GD.LT.Debug);
       return "!Error: " + e.Message;
@@ -349,11 +360,11 @@ public class NetworkManager {
     }
   }
 
-  public string GetPlayersFromGameClient(Player player, string gamename) {
+  public string GetPlayersFromGameClient(PlayerHandler player, ulong id) {
     if (player.tcpClient == null || !player.tcpClient.Connected) return "!You are not connected to a server!";
     try {
-      GD.DebugLog("Getting players for game " + gamename, GD.LT.Debug);
-      byte[] gameData = System.Text.Encoding.UTF8.GetBytes(gamename.Trim());
+      GD.DebugLog("Getting players for game " + id, GD.LT.Debug);
+      byte[] gameData = BitConverter.GetBytes(id);
       byte[] cmd = GenerateCommand(NetworkCommand.GetPlayersFromGame, gameData.Length);
       for (int i = 0; i < gameData.Length; i++)
         cmd[16 + i] = gameData[i];
@@ -368,11 +379,11 @@ public class NetworkManager {
     }
   }
 
-  public string IAmStartingTheGameClient(Player player) {
+  public string IAmStartingTheGameClient(PlayerHandler player) {
     if (player.tcpClient == null || !player.tcpClient.Connected) return "!You are not connected to a server!";
     try {
       GD.DebugLog("Confirming starting game", GD.LT.Debug);
-      byte[] gameData = System.Text.Encoding.UTF8.GetBytes(player.CurrentGame.Trim());
+      byte[] gameData = BitConverter.GetBytes(player.currentGameID);
       byte[] cmd = GenerateCommand(NetworkCommand.StartingTheGame, gameData.Length);
       for (int i = 0; i < gameData.Length; i++)
         cmd[16 + i] = gameData[i];
@@ -387,13 +398,13 @@ public class NetworkManager {
     }
   }
 
-  public string GetTheGameFromTheServer(Player player, out Game game, out int seed) {
+  public string GetTheGameFromTheServer(PlayerHandler player, out Game game, out int seed) {
     game = null;
     seed = 0;
     if (player.tcpClient == null || !player.tcpClient.Connected) return "You are not connected to a server!";
     try {
       GD.DebugLog("Getting game definition from server", GD.LT.Debug);
-      byte[] gameData = System.Text.Encoding.UTF8.GetBytes(player.CurrentGame);
+      byte[] gameData = BitConverter.GetBytes(player.currentGameID);
       byte[] cmd = GenerateCommand(NetworkCommand.GetRunningGame, gameData.Length);
       for (int i = 0; i < gameData.Length; i++)
         cmd[16 + i] = gameData[i];
@@ -405,7 +416,7 @@ public class NetworkManager {
 
     // The answer will arrive from Player.Listener. We should wait here for a while
     ReceiveMultiplayerGameCallerDelegate caller = new ReceiveMultiplayerGameCallerDelegate(player.ReceiveMultiplayerGame);
-    IAsyncResult result = caller.BeginInvoke(player.CurrentGame, out Game res, out int rndSeed, null, null);
+    IAsyncResult result = caller.BeginInvoke(player.currentGameID, out Game res, out int rndSeed, null, null);
     Thread.Sleep(0);
     result.AsyncWaitHandle.WaitOne();
 
@@ -423,9 +434,9 @@ public class NetworkManager {
     }
   }
 
-  public delegate string ReceiveMultiplayerGameCallerDelegate(string gamename, out Game g, out int rndSeed);
+  public delegate string ReceiveMultiplayerGameCallerDelegate(ulong gameid, out Game g, out int rndSeed);
 
-  public string SendGameAction(Player player, GameAction gameAction) {
+  public string SendGameAction(PlayerHandler player, GameAction gameAction) {
     if (player.tcpClient == null || !player.tcpClient.Connected) return "You are not connected to a server!";
     try {
       GD.DebugLog("Sending game action " + gameAction.ToString(), GD.LT.Debug);
@@ -565,7 +576,7 @@ public class NetworkManager {
   }
 
   public async void ListenToClient(object playerObj) {
-    Player player = (Player)playerObj;
+    PlayerHandler player = (PlayerHandler)playerObj;
     byte[] cmdBuffer = new byte[16];
     byte[] paramsBuffer = new byte[64 * 1024];
     bool localAlive = true;
@@ -625,7 +636,7 @@ public class NetworkManager {
             SendChatToClients(player, paramsBuffer);
             break;
           case NetworkCommand.GetPlayersFromGame:
-            GetPlayersFromGame(player, paramsBuffer, paramsLength);
+            GetPlayersFromGame(player, paramsBuffer);
             break;
           case NetworkCommand.StartingTheGame:
             StartGame(player, paramsBuffer, paramsLength);
@@ -637,7 +648,7 @@ public class NetworkManager {
             SetGameActionForClient(player, paramsBuffer);
             break;
           default:
-            GD.DebugLog("Unknown command from " + player.Name + ": " + cmd.ToString() + " |" + System.Text.Encoding.Default.GetString(cmdBuffer) + "|", GD.LT.Log);
+            GD.DebugLog("Unknown command from " + player + ": " + cmd.ToString() + " |" + System.Text.Encoding.Default.GetString(cmdBuffer) + "|", GD.LT.Log);
             break;
         }
       }
@@ -646,39 +657,39 @@ public class NetworkManager {
       if (GD.serverMode)
         GD.DebugLog("Thread terminated.", GD.LT.Log);
       else
-        OnServerMessage?.Invoke(this, new ServerMessage { message = player.Name + " Thread terminated", type = ServerMessages.Info });
+        OnServerMessage?.Invoke(this, new ServerMessage { message = player + " Thread terminated", type = ServerMessages.Info });
     } catch (ThreadInterruptedException) {
       localAlive = false;
       if (GD.serverMode)
         GD.DebugLog("Thread terminated.", GD.LT.Log);
       else
-        OnServerMessage?.Invoke(this, new ServerMessage { message = player.Name + " Thread terminated", type = ServerMessages.Info });
+        OnServerMessage?.Invoke(this, new ServerMessage { message = player + " Thread terminated", type = ServerMessages.Info });
     } catch (SocketException e) {
-      GD.DebugLog("SocketException when communicating with " + player.Name + ": " + e.Message + "\n" + e.ToString(), GD.LT.DebugST);
+      GD.DebugLog("SocketException when communicating with " + player + ": " + e.Message + "\n" + e.ToString(), GD.LT.DebugST);
       foreach (Game game in games)
         game.RemovePlayer(player.ID);
       players.Remove(player);
       // Update the players list
-      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = players, message = "Player \"" + player.Name + "\" disconnected", type = ServerMessages.PlayersList });
+      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = GetPlayersList(), message = "Player \"" + player + "\" disconnected", type = ServerMessages.PlayersList });
       SendPlayerListToRemoteManagers();
       SendUpdateGameList();
       if (GD.serverMode)
-        GD.DebugLog("SocketException when communicating with " + player.Name + ": " + e.Message + "\n" + e.ToString(), GD.LT.DebugST);
+        GD.DebugLog("SocketException when communicating with " + player + ": " + e.Message + "\n" + e.ToString(), GD.LT.DebugST);
       else
-        OnServerMessage?.Invoke(this, new ServerMessage { message = "SocketException when communicating with " + player.Name + ": " + e.Message + "\n" + e.ToString(), type = ServerMessages.Error });
+        OnServerMessage?.Invoke(this, new ServerMessage { message = "SocketException when communicating with " + player + ": " + e.Message + "\n" + e.ToString(), type = ServerMessages.Error });
     } catch (Exception e) {
-      GD.DebugLog("Exception when communicating with " + player.Name + ": " + e.Message + "\n" + e.ToString(), GD.LT.DebugST);
+      GD.DebugLog("Exception when communicating with " + player + ": " + e.Message + "\n" + e.ToString(), GD.LT.DebugST);
       foreach (Game game in games)
         game.RemovePlayer(player.ID);
       players.Remove(player);
       if (!GD.serverMode)
-        OnServerMessage?.Invoke(this, new ServerMessage { message = "Exception when communicating with " + player.Name + ": " + e.Message + "\n" + e.ToString(), type = ServerMessages.Error });
+        OnServerMessage?.Invoke(this, new ServerMessage { message = "Exception when communicating with " + player + ": " + e.Message + "\n" + e.ToString(), type = ServerMessages.Error });
     }
-    GD.DebugLog("Local listening thread for " + player.Name + " terminated!", GD.LT.Warning);
+    GD.DebugLog("Local listening thread for " + player + " terminated!", GD.LT.Warning);
   }
 
   private void Connect(TcpClient client, NetworkStream stream, byte[] data) {
-    Player player = new Player(data, 0);
+    PlayerHandler player = new PlayerHandler(data);
     if (players.Count > 100) {
       player.tcpClient = client;
       player.stream = stream;
@@ -686,9 +697,9 @@ public class NetworkManager {
       player.Kill();
       return;
     }
-    Player foundPlayer = null;
+    PlayerHandler foundPlayer = null;
     // Check if we have it
-    foreach (Player p in players)
+    foreach (PlayerHandler p in players)
       if (p.ID == player.ID) {
         foundPlayer = p;
         p.LastAccess = DateTime.Now;
@@ -716,17 +727,17 @@ public class NetworkManager {
       foundPlayer.tcpClient = client;
       foundPlayer.stream = stream;
     }
-    if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = "Player \"" + player.Name + " " + player.IP.ToString() + "\" connected.", type = ServerMessages.PlayersList, playerList = players });
+    if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = "Player \"" + player + " " + player.IP.ToString() + "\" connected.", type = ServerMessages.PlayersList, playerList = GetPlayersList() });
     SendPlayerListToRemoteManagers();
     Answer(player, NetworkCommand.UpdateGames, "Update");
   }
 
   private void ConnectRemote(TcpClient client, NetworkStream stream, byte[] data) {
-    Player player = new Player(data, 0) {
+    PlayerHandler player = new PlayerHandler(data) {
       tcpClient = client,
       stream = stream
     };
-    Player foundPlayer = null;
+    PlayerHandler foundPlayer = null;
     // Get the password
     int nameL = data[0];
     int ipL = data[nameL + 2];
@@ -736,13 +747,13 @@ public class NetworkManager {
 
     if (!string.IsNullOrWhiteSpace(serverPassword) && serverPassword != password) {
       Answer(player, NetworkCommand.Error, "Wrong password!");
-      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = "Wrong password from \"" + player.Name + " " + player.IP.ToString() + "\"", type = ServerMessages.Error });
-      GD.DebugLog("Wrong password from \"" + player.Name + " " + player.IP.ToString() + "\"", GD.LT.Log);
+      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = "Wrong password from \"" + player + " " + player.IP.ToString() + "\"", type = ServerMessages.Error });
+      GD.DebugLog("Wrong password from \"" + player.player + " " + player.IP.ToString() + "\"", GD.LT.Log);
       return;
     }
 
     // Check if we have it
-    foreach (Player p in players)
+    foreach (PlayerHandler p in players)
       if (p.ID == player.ID) {
         foundPlayer = p;
         p.LastAccess = DateTime.Now;
@@ -768,12 +779,12 @@ public class NetworkManager {
       player.communicationThread = new Thread(new ParameterizedThreadStart(ListenToClient));
       player.communicationThread.Start(foundPlayer);
     }
-    if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = "Remote server access \"" + player.Name + " " + player.IP.ToString() + "\" connected.", type = ServerMessages.PlayersList, playerList = players });
+    if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = "Remote server access \"" + player + " " + player.IP.ToString() + "\" connected.", type = ServerMessages.PlayersList, playerList = GetPlayersList() });
     SendPlayerListToRemoteManagers();
     Answer(player, NetworkCommand.UpdateGames, "Update");
   }
 
-  private void Disconnect(Player player) {
+  private void Disconnect(PlayerHandler player) {
     try {
       if (player.stream != null) player.stream.Close();
     } catch (Exception) { }
@@ -783,11 +794,10 @@ public class NetworkManager {
     players.Remove(player);
     // Leave all the games we were in
     foreach (Game game in games) {
-      if (game.Players.Remove(player.ID)) {
-        game.NumJoined--;
+      if (game.RemovePlayer(player.ID)) {
         // Send a "cannot start" message to all the players
-        for (int i = 0; i < game.Players.Count; i++) {
-          Player p = GetPlayerByID(game.Players[i].id);
+        for (int i = 0; i < game.nump; i++) {
+          PlayerHandler p = GetPlayerByID(game.Players[i].id);
           if (p!=null) {
             if (runningGames.Contains(game))
               SendPlayerDeath(p, player.ID, game.Name); // Have the player to immediately die in the battle
@@ -799,8 +809,8 @@ public class NetworkManager {
     }
 
     Thread.Sleep(100);
-    GD.DebugLog("Player \"" + player.Name + "\" disconnected", GD.LT.Log);
-    if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = players, message = "Player \"" + player.Name + "\" disconnected", type = ServerMessages.PlayersList });
+    GD.DebugLog("Player \"" + player + "\" disconnected", GD.LT.Log);
+    if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = GetPlayersList(), message = "Player \"" + player + "\" disconnected", type = ServerMessages.PlayersList });
     SendPlayerListToRemoteManagers();
     SendUpdateGameList();
     player.Kill();
@@ -817,7 +827,7 @@ public class NetworkManager {
     int numg = games.Count;
     int nump = players.Count; // In case it is not from a remote server we should filter out the remoteservermanagers
     if (!fromRemoteServerManager) {
-      foreach (Player p in players)
+      foreach (PlayerHandler p in players)
         if (p.RemoteManager) nump--;
     }
     int total = 8; // numgames + numplayeres
@@ -846,7 +856,7 @@ public class NetworkManager {
     return res;
   }
 
-  private void CreateGame(Player player, byte[] data) {
+  private void CreateGame(PlayerHandler player, byte[] data) {
     player.LastAccess = DateTime.Now;
     if (games.Count > 50) {
       // Try to remove completed games
@@ -874,7 +884,7 @@ public class NetworkManager {
 
     GD.DebugLog("Server: random seed = " + game.rndSeed, GD.LT.Log);
 
-    for (int i = 0; i < game.Players.Count; i++) {
+    for (int i = 0; i < game.Players.Length; i++) {
       if (GetPlayerByID(game.Players[i].id) == null)
         GD.DebugLog("Found an unknown player! " + game.Players[i].id + ": " + game.Players[i].name, GD.LT.Error);
     }
@@ -892,8 +902,8 @@ public class NetworkManager {
 
     // Add it to the list
     games.Add(game);
-    player.Status = StatusOfPlayer.ReadyToStart;
-    player.CurrentGame = game.Name;
+    player.player.def.Status = PlayerGameStatus.ReadyToStart;
+    player.currentGameID = game.id;
     if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { type = ServerMessages.GameList, gameList = games, num = players.Count, message = "Game \"" + game.Name + "\" created by " + player.Name });
 
     Answer(player, NetworkCommand.GameCreated, game.Name);
@@ -901,7 +911,7 @@ public class NetworkManager {
     SendUpdateGameList();
   }
 
-  private void JoinGame(Player player, byte[] data, int dataLen) {
+  private void JoinGame(PlayerHandler player, byte[] data, int dataLen) {
     player.LastAccess = DateTime.Now;
     string gamename = System.Text.Encoding.UTF8.GetString(data, 0, dataLen);
     if (string.IsNullOrEmpty(gamename)) {
@@ -936,8 +946,8 @@ public class NetworkManager {
       if (g == game) continue;
       g.RemovePlayer(player.ID);
       if (g.NumJoined == g.NumPlayers - 1) { // Here we need to send the "cannot start" message
-        for (int i = 0; i < g.Players.Count; i++) {
-          Player p = GetPlayerByID(g.Players[i].id);
+        for (int i = 0; i < g.Players.Length; i++) {
+          PlayerHandler p = GetPlayerByID(g.Players[i].id);
           if (p != null) {
             g.Status = GameStatus.Waiting;
             SendGameCanStart(p, false, g.Name);
@@ -947,9 +957,9 @@ public class NetworkManager {
       }
     }
     game.NumJoined++;
-    game.Players.Add(new SimplePlayer(player));
-    player.Status = StatusOfPlayer.ReadyToStart;
-    player.CurrentGame = game.Name;
+    game.AddPlayer(player);
+    player.player.def.Status = PlayerGameStatus.ReadyToStart;
+    player.currentGameID = game.id;
     Answer(player, NetworkCommand.Joined, game.Name);
     GD.DebugLog("Player " + player.Name + " joined game: " + game.Name, GD.LT.Log);
     if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { type = ServerMessages.Info, message = "Player " + player.Name + " joined game: " + game.Name });
@@ -958,8 +968,8 @@ public class NetworkManager {
       game.Status = GameStatus.ReadyToStart;
       Thread.Sleep(100);
       // Send a "can start" message to all the players
-      for (int i = 0; i < game.Players.Count; i++) {
-        Player p = GetPlayerByID(game.Players[i].id);
+      for (int i = 0; i < game.Players.Length; i++) {
+        PlayerHandler p = GetPlayerByID(game.Players[i].id);
         if (p != null) {
           SendGameCanStart(p, true, game.Name);
         }
@@ -971,7 +981,7 @@ public class NetworkManager {
     SendPlayerListToRemoteManagers();
   }
 
-  private void LeaveGame(Player player, byte[] data, int dataLen) {
+  private void LeaveGame(PlayerHandler player, byte[] data, int dataLen) {
     player.LastAccess = DateTime.Now;
     string gamename = System.Text.Encoding.UTF8.GetString(data, 0, dataLen);
     if (string.IsNullOrEmpty(gamename)) {
@@ -989,7 +999,7 @@ public class NetworkManager {
       return;
     }
     // Find the player now
-    if (!game.Players.Contains(player.ID)) {
+    if (game.GetPlayer(player.ID) == null) {
       Answer(player, NetworkCommand.Error, "You did not join the game \"" + game.Name + "\".\n");
       return;
     }
@@ -997,8 +1007,8 @@ public class NetworkManager {
       // Have the player to immediately die in the battle
       if (runningGames.Contains(game)) {
         bool found = false;
-        for (int i = 0; i < game.Players.Count; i++) {
-          Player p = GetPlayerByID(game.Players[i].id);
+        for (int i = 0; i < game.Players.Length; i++) {
+          PlayerHandler p = GetPlayerByID(game.Players[i].id);
           if (p != null && p.ID != player.ID) {
             SendPlayerDeath(p, player.ID, game.Name);
             found = true;
@@ -1008,10 +1018,9 @@ public class NetworkManager {
       }
     }
     game.NumJoined--;
-    game.Players.Remove(player.ID);
-    player.Status = StatusOfPlayer.Waiting;
-    player.CurrentGame = "";
-    player.TheGame = null;
+    game.RemovePlayer(player.ID);
+    player.player.def.Status = PlayerGameStatus.Waiting;
+    player.currentGameID = 0;
 
     Answer(player, NetworkCommand.Left, game.Name);
     GD.DebugLog("Player " + player.Name + " left game: " + game.Name, GD.LT.Log);
@@ -1021,8 +1030,8 @@ public class NetworkManager {
       game.Status = GameStatus.Waiting;
       Thread.Sleep(100);
       // Send a "cannot start" message to all the players
-      for (int i = 0; i < game.Players.Count; i++) {
-        Player p = GetPlayerByID(game.Players[i].id);
+      for (int i = 0; i < game.Players.Length; i++) {
+        PlayerHandler p = GetPlayerByID(game.Players[i].id);
         if (p != null) {
           SendGameCanStart(p, false, game.Name);
         }
@@ -1034,7 +1043,7 @@ public class NetworkManager {
     SendPlayerListToRemoteManagers();
   }
 
-  internal void DeleteGame(Player player, byte[] data, int dataLen) {
+  internal void DeleteGame(PlayerHandler player, byte[] data, int dataLen) {
     if (player != null) player.LastAccess = DateTime.Now;
     string gamename = System.Text.Encoding.UTF8.GetString(data, 0, dataLen);
 
@@ -1059,8 +1068,8 @@ public class NetworkManager {
     }
     // Disconnect all players from the game and send an update
     if (player != null) {
-      for (int i = 0; i < game.Players.Count; i++) {
-        Player p = GetPlayerByID(game.Players[i].id);
+      for (int i = 0; i < game.Players.Length; i++) {
+        PlayerHandler p = GetPlayerByID(game.Players[i].id);
         if (p != null && p.ID != player.ID) {
           Answer(p, NetworkCommand.GameDeleted, game.Name);
         }
@@ -1070,8 +1079,8 @@ public class NetworkManager {
     if (game.NumJoined == game.NumPlayers) {
       Thread.Sleep(100);
       // Send a "cannot start" message to all the players
-      for (int i = 0; i < game.Players.Count; i++) {
-        Player p = GetPlayerByID(game.Players[i].id);
+      for (int i = 0; i < game.Players.Length; i++) {
+        PlayerHandler p = GetPlayerByID(game.Players[i].id);
         if (p != null) {
           SendGameCanStart(p, false, game.Name);
         }
@@ -1092,53 +1101,49 @@ public class NetworkManager {
 
   private void SendUpdateGameList() {
     try {
-      foreach (Player player in players)
+      foreach (PlayerHandler player in players)
         Answer(player, NetworkCommand.UpdateGames, "UpdateGlobal");
     } catch (Exception e) {
       GD.DebugLog("Error in SendUpdateGameList: " + e.Message, GD.LT.Debug);
     }
   }
 
-  private void SendPlayerListToRemoteManagers(Player requester = null) {
+  private void SendPlayerListToRemoteManagers(PlayerHandler requester = null) {
     int len = 4;
-    foreach (Player p in players)
-      len += p.StringifyFullLen();
+    foreach (PlayerHandler p in players)
+      len += p.player.def.GetDataLength();
     /* 4 bytes numplayers
      * { full stringify of each player }
      */
 
-    byte[] res = new byte[len];
+    byte[] res = new byte[len + 2];
     res[0] = (byte)(players.Count & 0xff);
     res[1] = (byte)((players.Count >> 8) & 0xff);
-    res[2] = (byte)((players.Count >> 16) & 0xff);
-    res[3] = (byte)((players.Count >> 24) & 0xff);
 
-    int pos = 4;
-    foreach (Player p in players) {
-      byte[] pdata = p.StringifyFull();
+    int pos = 2;
+    foreach (PlayerHandler p in players) {
+      byte[] pdata = p.player.def.Serialize();
       for (int i = 0; i < pdata.Length; i++)
-        res[pos + i] = pdata[i];
-      pos += pdata.Length;
-    }
-    if (requester != null && requester.RemoteManager) {
-      Answer(requester, NetworkCommand.PlayersList, res);
-    }
-    else {
-      foreach (Player p in players)
-        if (p.RemoteManager) {
-          Answer(p, NetworkCommand.PlayersList, res);
-        }
+        res[pos++] = pdata[i];
+      if (requester != null && requester.RemoteManager) {
+        Answer(requester, NetworkCommand.PlayersList, res);
+      }
+      else {
+        foreach (PlayerHandler ph in players)
+          if (ph.RemoteManager)
+            Answer(p, NetworkCommand.PlayersList, res);
+      }
     }
   }
 
-  private Player GetPlayerByID(ulong id) {
-    foreach (Player p in players)
+  private PlayerHandler GetPlayerByID(ulong id) {
+    foreach (PlayerHandler p in players)
       if (p.ID == id)
         return p;
     return null;
   }
 
-  private void SendGameCanStart(Player player, bool canStart, string gamename) {
+  private void SendGameCanStart(PlayerHandler player, bool canStart, string gamename) {
     byte[] gnd = System.Text.Encoding.UTF8.GetBytes(gamename);
     byte[] cmd = GenerateCommand(NetworkCommand.GameCanStart, 1 + 1 + gnd.Length);
     cmd[16] = (byte)(canStart ? 1 : 0);
@@ -1148,36 +1153,45 @@ public class NetworkManager {
     player.stream.Write(cmd, 0, cmd.Length);
   }
 
-  public void GetPlayersFromGame(Player player, byte[] data, int dataLen) {
-    string name = System.Text.Encoding.UTF8.GetString(data, 0, dataLen);
+  public void GetPlayersFromGame(PlayerHandler player, byte[] data) {
+    ulong id = System.BitConverter.ToUInt64(data, 0);
     // Do we have this game?
     Game game = null;
     foreach (Game g in games) {
-      if (g.Name == name) {
+      if (g.id == id) {
         game = g;
         break;
       }
     }
     if (game == null) {
-      Answer(player, NetworkCommand.Error, "Game \"" + name + "\" does not exists!");
+      Answer(player, NetworkCommand.Error, "Game \"" + id + "\" does not exists!");
       return;
     }
 
-    byte[] gamename = System.Text.Encoding.UTF8.GetBytes(game.Name);
-    byte[] sps = game.Players.Serialize();
-    int len = 1 + gamename.Length + sps.Length;
+    int len = 8 + 1 + System.Text.Encoding.UTF8.GetByteCount(game.Name);
+    for (int i = 0; i < game.Players.Length; i++)
+      len += game.Players[i].GetDataLength();
     byte[] res = new byte[len];
-    res[0] = (byte)gamename.Length;
-    for (int i = 0; i < gamename.Length; i++)
-      res[1 + i] = gamename[i];
-    for (int i = 0; i < sps.Length; i++)
-      res[1 + i + gamename.Length] = sps[i];
+    byte[] d = BitConverter.GetBytes(game.id);
+    int pos = 0;
+    for (int i = 0; i < 8; i++)
+      res[pos++] = d[i];
+    d = System.Text.Encoding.UTF8.GetBytes(game.Name);
+    res[pos++] = (byte)d.Length;
+    for (int i = 0; i < d.Length; i++) 
+      res[pos++] = d[i];
+
+    for (int i = 0; i < game.Players.Length; i++) {
+      d = game.Players[i].Serialize();
+      for (int j = 0; j < d.Length; j++)
+        res[pos++] = d[j];
+    }
 
     Answer(player, NetworkCommand.SetPlayersFromGame, res);
   }
 
 
-  public void StartGame(Player player, byte[] data, int dataLen) {
+  public void StartGame(PlayerHandler player, byte[] data, int dataLen) {
     string name = System.Text.Encoding.UTF8.GetString(data, 0, dataLen);
     // Do we have this game?
     Game game = null;
@@ -1193,43 +1207,37 @@ public class NetworkManager {
     }
 
     // Set the current player as started
-    SimplePlayer gsp = game.Players.GetByID(player.ID);
-    if (gsp == null) {
-      Answer(player, NetworkCommand.Error, "player \"" + player.Name + "\" is not inside the game \"" + name + "\"!");
-      return;
-    }
-    player.Status = StatusOfPlayer.StartingGame;
-    game.Players.SetStatus(player.ID, StatusOfPlayer.StartingGame);
+    player.player.def.Status = PlayerGameStatus.StartingGame;
     SendPlayerListToRemoteManagers();
 
     /* Return a command including all the players (id, name, and avatar) and if they are starting or not, add a last byte to tell if the game is actually ready to begin
-     1 byte -> game name len
-     n bytes -> game name
-     1 byte -> can actually begin (0 = no, 1 = yes)
-     simpleplayers serialized
+     8 bytes game id
+     1 byte if it can begin (0 = no, 1 = yes)
+     serialized status of players (id and status? also name?)
      */
-    byte[] gamename = System.Text.Encoding.UTF8.GetBytes(game.Name);
-    byte[] sps = game.Players.Serialize();
-    byte[] res = new byte[2 + gamename.Length + sps.Length];
+    int len = 9;
+    for (int i = 0; i < game.nump; i++)
+      len += game.Players[i].GetDataLength();
 
+    byte[] res = new byte[len];
     int pos = 0;
-    res[pos] = (byte)gamename.Length;
-    pos++;
-    for (int i = 0; i < gamename.Length; i++)
-      res[pos + i] = gamename[i];
-    pos += gamename.Length;
-    // Check if all players started
+    byte[] d = BitConverter.GetBytes(game.id);
+    for (int i = 0; i < 8; i++)
+      res[pos++] = d[i];
+
     bool canStart = true;
-    for (int i = 0; i < game.Players.Count; i++) {
-      SimplePlayer sp = game.Players[i];
-      if (!sp.ai && sp.status != StatusOfPlayer.StartingGame) {
+    for (int i = 0; i < game.nump; i++) {
+      PlayerHandler p = GetPlayerByID(game.Players[i].id);
+      if (game.Players[i].type != PlayerDef.Type.AI && p.player.def.Status != PlayerGameStatus.StartingGame) {
         canStart = false;
       }
     }
-    res[pos] = (byte)(canStart ? 1 : 0);
-    pos++;
-    for (int i = 0; i < sps.Length; i++)
-      res[pos + i] = sps[i];
+    res[pos++] = (byte)(canStart ? 1 : 0);
+    for (int i = 0; i < game.nump; i++) {
+      d = game.Players[i].Serialize();
+      for (int j = 0; j < d.Length; j++)
+        res[pos++] = d[j];
+    }
 
     // Start the actual game server side if needed
     if (canStart && game.Status != GameStatus.Playing) {
@@ -1250,14 +1258,18 @@ public class NetworkManager {
       }
 
       // Get only the first n, where n is the number of expected AIs
-      for (int i = 0; i < game.NumAIs; i++)
-        game.Players.Add(new SimplePlayer(allAIs[i]));
+      for (int i = 0; i < game.NumAIs; i++) {
+        PlayerDef ai = new PlayerDef((ulong)(allAIs[i] + 1), GD.GetNameForAI(allAIs[i]), (byte)GD.GetAvatarForAI(allAIs[i])) {
+          type = PlayerDef.Type.AI
+        };
+        game.AddPlayer(ai);
+      }
 
       // Randomize the positions
       for (int i = 0; i < 1000; i++) {
-        int a = random.Next(0, game.Players.Count);
-        int b = random.Next(0, game.Players.Count);
-        SimplePlayer tmp = game.Players[a];
+        int a = random.Next(0, game.nump);
+        int b = random.Next(0, game.nump);
+        PlayerDef tmp = game.Players[a];
         game.Players[a] = game.Players[b];
         game.Players[b] = tmp;
       }
@@ -1272,16 +1284,16 @@ public class NetworkManager {
     }
 
     // Set the game for the player and send the message to all players
-    for (int i = 0; i < game.Players.Count; i++) {
-      Player p = GetPlayerByID(game.Players[i].id);
+    for (int i = 0; i < game.nump; i++) {
+      PlayerHandler p = GetPlayerByID(game.Players[i].id);
       if (p != null) {
-        p.TheGame = game;
+        p.currentGameID = game.id;
         Answer(p, NetworkCommand.StartingTheGame, res);
       }
     }
   }
 
-  public void GetRunningGame(Player player, byte[] data, int dataLen) {
+  public void GetRunningGame(PlayerHandler player, byte[] data, int dataLen) {
     string name = System.Text.Encoding.UTF8.GetString(data, 0, dataLen);
     // Do we have this game?
     Game game = null;
@@ -1297,8 +1309,8 @@ public class NetworkManager {
     }
 
     // Set the current player as started
-    player.Status = StatusOfPlayer.Playing;
-    game.Players.SetStatus(player.ID, StatusOfPlayer.Playing);
+    player.player.def.Status = PlayerGameStatus.Playing;
+    game.SetPlayerStatus(player.ID, PlayerGameStatus.Playing);
 
     // Return the full definition of the game
     byte[] rnd = BitConverter.GetBytes(game.rndSeed);
@@ -1312,7 +1324,7 @@ public class NetworkManager {
     Answer(player, NetworkCommand.GetRunningGame, res);
   }
 
-  private void SendPlayerDeath(Player player, ulong id, string gameName) {
+  private void SendPlayerDeath(PlayerHandler player, ulong id, string gameName) {
     byte[] idd = BitConverter.GetBytes(id);
     byte[] gnd = System.Text.Encoding.UTF8.GetBytes(gameName);
     byte[] data = new byte[idd.Length + gnd.Length + 1];
@@ -1327,52 +1339,52 @@ public class NetworkManager {
   }
 
   
-  public void SetGameActionForClient(Player player, byte[] data) {
+  public void SetGameActionForClient(PlayerHandler player, byte[] data) {
     GameAction gameAction = new GameAction(data, 0);
 
-    if (player.TheGame == null) {
-      Answer(player, NetworkCommand.Error, System.Text.Encoding.UTF8.GetBytes("!Missing game for player: " + player.Name));
-      GD.DebugLog("Missing game for player: " + player.Name, GD.LT.Debug);
+    if (player.currentGameID == 0) {
+      Answer(player, NetworkCommand.Error, System.Text.Encoding.UTF8.GetBytes("!Missing game for player: " + player));
+      GD.DebugLog("Missing game for player: " + player, GD.LT.Debug);
       return;
     }
     // Find the game
-    bool found = false;
+    Game game = null;
     foreach (Game g in games)
-      if (g == player.TheGame) {
-        found = true;
+      if (g.id == player.currentGameID) {
+        game = g;
         break;
       }
-    if (!found) {
-      Answer(player, NetworkCommand.Error, System.Text.Encoding.UTF8.GetBytes("!Cannot find the game \"" + player.TheGame.Name + "\" played by the player: " + player.Name));
-      GD.DebugLog("Cannot find the game \"" + player.TheGame.Name + "\" played by the player: " + player.Name, GD.LT.Debug);
+    if (game == null) {
+      Answer(player, NetworkCommand.Error, System.Text.Encoding.UTF8.GetBytes("!Cannot find the game \"" + player.currentGameID + "\" played by the player: " + player.Name));
+      GD.DebugLog("Cannot find the game \"" + player.currentGameID + "\" played by the player: " + player.Name, GD.LT.Debug);
       return;
     }
-    if (player.TheGame.Status != GameStatus.Playing) {
-      Answer(player, NetworkCommand.Error, System.Text.Encoding.UTF8.GetBytes("!Game \"" + player.TheGame.Name + "\" is not playing!"));
+    if (game.Status != GameStatus.Playing) {
+      Answer(player, NetworkCommand.Error, System.Text.Encoding.UTF8.GetBytes("!Game \"" + game.Name + "\" is not playing!"));
       return;
     }
 
     // Broadcast the progress message
-    for (int i = 0; i < player.TheGame.Players.Count; i++) {
-      SimplePlayer sp = player.TheGame.Players[i];
-      if (sp.ai) continue;
-      Player p = GetPlayerByID(player.TheGame.Players[i].id);
+    for (int i = 0; i < game.nump; i++) {
+      PlayerDef sp = game.Players[i];
+      if (sp.type != PlayerDef.Type.Human) continue;
+      PlayerHandler p = GetPlayerByID(sp.id);
       if (p != null && p.tcpClient != null && p.tcpClient.Connected)
         Answer(p, NetworkCommand.GameProgressUpdate, BitConverter.GetBytes(player.ID));
       else
         GD.DebugLog("But " + sp.ToString() + " seems to be not existing!", GD.LT.Debug);
     }
 
-    player.TheGame.engine.EndTurn(true, player, gameAction);
+    game.engine.EndTurn(true, player.ID, gameAction);
   }
 
-  public void SendGameTurn(GameEngineValues game) {
+  public void SendGameTurn(Player[] players, GameEngineValues game) {
     byte[] data = game.Serialize();
 
     for (int i = 0; i < 6; i++) {
-      PlayerStatus sp = game.players[i];
-      if (sp == null || sp.isAI) continue;
-      Player p = GetPlayerByID(sp.id);
+      PlayerDef sp = players[i].def;
+      if (sp == null || sp.type == PlayerDef.Type.AI) continue;
+      PlayerHandler p = GetPlayerByID(sp.id);
       if (p == null) continue;
       Answer(p, NetworkCommand.GameTurn, data);
     }
@@ -1390,7 +1402,7 @@ public class NetworkManager {
       mainListeningThread.Abort();
     }
     if (players != null) {
-      foreach (Player p in players) {
+      foreach (PlayerHandler p in players) {
         try {
           if (p.stream != null) p.stream.Close();
         } catch (Exception) { }
@@ -1398,7 +1410,7 @@ public class NetworkManager {
           if (p.tcpClient != null) p.tcpClient.Close();
         } catch (Exception) { }
         try {
-          GD.DebugLog("Stopping communicating thread for " + p.Name + "...", GD.LT.Log);
+          GD.DebugLog("Stopping communicating thread for " + p + "...", GD.LT.Log);
           if (p.communicationThread != null) {
             p.communicationThread.Abort();
           }
@@ -1430,8 +1442,7 @@ public class NetworkManager {
     public string message;
     public int num;
     public List<Game> gameList;
-    public List<Player> playerList;
-    public SimpleList gamePlayersList;
+    public List<PlayerDef> playerList;
   }
 
   public class ChatMessage : EventArgs {
@@ -1447,7 +1458,7 @@ public class NetworkManager {
       return ">" + type.ToString() + " from " + senderid + ": " + message + "<";
     }
 
-    public byte[] Stringify(Player player) {
+    public byte[] Stringify(PlayerHandler player) {
       byte[] msg = System.Text.Encoding.UTF8.GetBytes(message);
       int msglen = (msg.Length > 32000) ? 32000 : msg.Length;
       int totalParticipantsLen = 1; // Size
@@ -1561,16 +1572,6 @@ public class NetworkManager {
     public int num;
     public ulong id;
     public GameEngineValues engineValues;
-    // FIXME add all field we may need
-
-    // status of each player
-    // order of actions
-    // actions of each player
-    // techs and imps of each player
-    // situation of all cities
-    // Result of the actions
-
-
   }
 
   #endregion
@@ -1728,7 +1729,7 @@ public class NetworkManager {
     return NetworkCommand.NotValid;
   }
 
-  private void Answer(Player player, NetworkCommand cmd, string data) {
+  private void Answer(PlayerHandler player, NetworkCommand cmd, string data) {
     try {
       GD.DebugLog("Sending " + cmd.ToString() + " to " + player.ToString(), GD.LT.Debug);
       byte[] msg = System.Text.Encoding.UTF8.GetBytes(data);
@@ -1739,13 +1740,13 @@ public class NetworkManager {
       GD.DebugLog(">> Player " + player.ToString() + " communication error: " + e.Message, GD.LT.DebugST);
       players.Remove(player);
       player.Kill();
-      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = players, message = "", type = ServerMessages.PlayersList });
+      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = GetPlayersList(), message = "", type = ServerMessages.PlayersList });
       if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = ">> Player " + player.ToString() + " communication error: " + e.Message, type = ServerMessages.Error });
       SendPlayerListToRemoteManagers();
     }
   }
 
-  private void Answer(Player player, NetworkCommand cmd, byte[] data) {
+  private void Answer(PlayerHandler player, NetworkCommand cmd, byte[] data) {
     try {
       GD.DebugLog("Sending " + cmd.ToString() + " to " + player.ToString(), GD.LT.Log);
       byte[] answer = GenerateCommand(cmd, data.Length);
@@ -1755,7 +1756,7 @@ public class NetworkManager {
       GD.DebugLog(">> Player " + player.ToString() + " communication error: " + e.Message, GD.LT.Warning);
       players.Remove(player);
       player.Kill();
-      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = players, message = "", type = ServerMessages.PlayersList });
+      if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { playerList = GetPlayersList(), message = "", type = ServerMessages.PlayersList });
       if (!GD.serverMode) OnServerMessage?.Invoke(this, new ServerMessage { message = ">> Player " + player.ToString() + " communication error: " + e.Message, type = ServerMessages.Error });
       SendPlayerListToRemoteManagers();
     }
@@ -1766,7 +1767,7 @@ public class NetworkManager {
 
   #region Chat ************************************************************************************************************************************************************************************
 
-  public void SendChat(ChatID chatid, ChatType type, Player player, List<ChatParticipant> participants, string message) {
+  public void SendChat(ChatID chatid, ChatType type, PlayerHandler player, List<ChatParticipant> participants, string message) {
 
     string dbg = "";
     foreach (ChatParticipant cp in participants)
@@ -1814,7 +1815,7 @@ public class NetworkManager {
   }
 
 
-  public void SendChatToClients(Player player, byte[] data) {
+  public void SendChatToClients(PlayerHandler player, byte[] data) {
     // Get the message, pick all the participants, and send to all of them the message
 
     /* Chat format
@@ -1835,7 +1836,7 @@ public class NetworkManager {
     List<ChatParticipant> goners = new List<ChatParticipant>();
     foreach(ChatParticipant cp in chat.participants) {
       bool found = false;
-      foreach (Player p in players)
+      foreach (PlayerHandler p in players)
         if (p.ID == cp.id) {
           found = true;
           break;
@@ -1862,14 +1863,14 @@ public class NetworkManager {
       gonechat.senderavatar = cp.avatar;
       gonechat.participants = chat.participants;
       foreach (ChatParticipant participant in chat.participants) {
-        Player receiver = GetPlayerByID(participant.id);
+        PlayerHandler receiver = GetPlayerByID(participant.id);
         if (receiver != null)
           Answer(receiver, NetworkCommand.ReceiveChat, gonechat.Stringify(cp.id, cp.avatar));
       }
     }
 
     foreach (ChatParticipant cp in chat.participants) {
-      Player receiver = GetPlayerByID(cp.id);
+      PlayerHandler receiver = GetPlayerByID(cp.id);
       if (receiver != null)
         Answer(receiver, NetworkCommand.ReceiveChat, chat.Stringify(player));
     }

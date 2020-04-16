@@ -74,13 +74,13 @@ public class Chat : MonoBehaviour {
   public Button MaxButton;
   public GameObject ChatContainer;
   private List<ChatParticipant> participants;
-  private Player player;
+  private PlayerHandler player;
   private ChatManager manager;
   public ChatID id;
   public ChatType type;
 
 
-  internal void Init(NetworkManager.ChatMessage e, Player player, ChatManager manager) {
+  internal void Init(NetworkManager.ChatMessage e, PlayerHandler player, ChatManager manager) {
     id = e.id;
     type = e.type;
     this.player = player;
@@ -113,7 +113,6 @@ public class Chat : MonoBehaviour {
     MinButton.gameObject.SetActive(false);
     MaxButton.gameObject.SetActive(true);
     ChatContainer.gameObject.SetActive(false);
-    Vector2 now = GetComponent<RectTransform>().sizeDelta;
     GetComponent<RectTransform>().sizeDelta = new Vector2(500, 36);
   }
   public void MaximizeChat() {
@@ -123,7 +122,7 @@ public class Chat : MonoBehaviour {
     GetComponent<RectTransform>().sizeDelta = new Vector2(500, 360);
   }
 
-  internal bool IsPlayer(Player thePlayer) {
+  internal bool IsPlayer(PlayerHandler thePlayer) {
     return player.ID == thePlayer.ID;
   }
 
@@ -199,7 +198,7 @@ public class Chat : MonoBehaviour {
     }
 
     // Add the message
-    ChatTxt.text = ChatTxt.text + msg;
+    ChatTxt.text += msg;
   }
 
   public void SendMessage() {

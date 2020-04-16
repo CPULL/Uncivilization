@@ -5,77 +5,58 @@ using UnityEngine;
 public class GameEngine {
   // Used to run a game, on single it will handle the current game, on server mode we should line it to the game itself and handle it server side
 
-  public GameEngine(Player player) {
+  public GameEngine(PlayerHandler player) {
     if (player != null) player.OnGame += OnMsgReceived;
     messages = new List<NetworkManager.GameMessage>();
   }
 
   internal int nump = 0;
-  internal PlayerStatus[] players = new PlayerStatus[6];
   internal bool[] completed = new bool[6];
-  public City[] cities = new City[3 * 3 * 6];
+  GameValues currentVals;
+  GameValues nextVals;
+
+
+  internal Player[] players = new Player[6];
+  public CityVals[] cityVals = new CityVals[3 * 3 * 6];
   public List<NetworkManager.GameMessage> messages;
-  public PlayerStatus mySelf;
+  public Player mySelf;
   public Game game;
 
   public void InitEnemiesSingleplayer(Game theGame, Transform selectedEnemies) { // This is for singleplayer
     game = theGame;
     GD.InitRandomGenerator(theGame.rndSeed);
+    currentVals = new GameValues(theGame.Name);
 
     nump = 0;
+    Enemy enemy;
     foreach (Transform p in selectedEnemies) {
-      Enemy enemy = p.GetComponent<Enemy>();
-      enemy.stats.avatar = GD.GetAvatarForAI(enemy.stats.name);
-      enemy.stats.id = GD.GetIDForAI(enemy.stats.name);
-      players[nump] = enemy.stats;
-      players[nump].Init(enemy, nump);
-      game.Players.Add(new SimplePlayer(enemy.stats.id, enemy.stats.name, (byte)enemy.stats.avatar));
+      enemy = p.GetComponent<Enemy>();
+      enemy.player.def.id = GD.GetIDForAI(enemy.player.def.name);
+      enemy.player.def.avatar = GD.GetAvatarForAI(enemy.player.def.name);
+      players[nump] = new Player(enemy);
+      game.AddPlayer(players[nump].def);
       nump++;
     }
-    Enemy player = GD.instance.PlayersBase[0].GetComponent<Enemy>();
-    players[nump] = player.stats;
-    player.stats.Init(player, nump);
+    enemy = GD.instance.PlayersBase[0].GetComponent<Enemy>();
+    enemy.player = new Player(GD.thePlayer.player.def);
+    players[nump] = new Player(enemy);
+    game.AddPlayer(players[nump].def);
     nump++;
-    game.Players.Add(new SimplePlayer(player.stats.id, player.stats.name, (byte)player.stats.avatar));
-    player.SetEnemy(GD.thePlayer.Name, GD.thePlayer.Avatar, GD.thePlayer.ID);
+    enemy.SetEnemyAsPlayer(GD.thePlayer.Name, GD.thePlayer.Avatar, GD.thePlayer.ID);
 
     // Randomize the positions
     for (int i = 0; i < 1000; i++) {
       int a = GD.GetRandom(0, nump);
       int b = GD.GetRandom(0, nump);
-      PlayerStatus tmpe = players[a];
+      Player tmpe = players[a];
       players[a] = players[b];
       players[b] = tmpe;
-      SimplePlayer tmpsp = game.Players[a];
+      PlayerDef tmpsp = game.Players[a];
       game.Players[a] = game.Players[b];
       game.Players[b] = tmpsp;
     }
 
-    int[] sectors = new int[6];
-    for (int i = 0; i < 6; i++) sectors[i] = i;
-    for (int i = 0; i < 1000; i++) {
-      int a = GD.GetRandom(0, 6);
-      int b = GD.GetRandom(0, 6);
-      int tmp = sectors[a];
-      sectors[a] = sectors[b];
-      sectors[b] = tmp;
-    }
-
-    // Assign a single city (population proportional to the difficulty) to each player
-    for (int i = 0; i < nump; i++) {
-      PlayerStatus ps = players[i];
-      int pos = 1 + 9 + (sectors[i] < 3 ? sectors[i] * 3 : sectors[i] * 3 + 9 * 2);
-      int cx = pos % 9;
-      int cy = pos / 9;
-      if (ps.isAI)
-        cities[pos].Set(5 + 5 * GD.difficulty, players[players[i].index]);
-      else
-        cities[pos].Set(10 - GD.difficulty, players[players[i].index]);
-      ps.cities.Add(pos);
-    }
-
-    for (int i = 0; i < nump; i++)
-      completed[i] = false;
+    SharedInit();
   }
 
   public void InitEnemiesMultiplayer(Game theGame) { // This is for multiplayer
@@ -83,83 +64,108 @@ public class GameEngine {
     GD.InitRandomGenerator(theGame.rndSeed);
 
     nump = 0;
-    for (int i = 0; i < game.Players.Count; i++) {
-      SimplePlayer sp = game.Players[i];
-      players[nump] = new PlayerStatus(sp);
+    for (int i = 0; i < game.nump; i++) {
+      players[nump] = new Player(game.Players[i]);
       nump++;
     }
-    // Randomize the positions if single player
-    if (!game.multiplayer) {
-      for (int i = 0; i < 1000; i++) {
-        int a = GD.GetRandom(0, nump);
-        int b = GD.GetRandom(0, nump);
-        PlayerStatus tmpe = players[a];
-        players[a] = players[b];
-        players[b] = tmpe;
-        SimplePlayer tmpsp = game.Players[a];
-        game.Players[a] = game.Players[b];
-        game.Players[b] = tmpsp;
+
+    SharedInit();
+  }
+
+  private void SharedInit() {
+    for (byte i = 0; i < nump; i++) {
+      if (players[i] == null) {
+        Debug.LogError("Empty player found! SharedInit"); // FIXME
       }
     }
 
-    int[] sectors = new int[6];
-    for (int i = 0; i < 6; i++) sectors[i] = i;
+    byte[] sectors = new byte[6];
+    for (byte i = 0; i < 6; i++) sectors[i] = i;
     for (int i = 0; i < 1000; i++) {
       int a = GD.GetRandom(0, 6);
       int b = GD.GetRandom(0, 6);
-      int tmp = sectors[a];
+      byte tmp = sectors[a];
       sectors[a] = sectors[b];
       sectors[b] = tmp;
     }
 
+    // Assign the colors
+    for (byte i = 0; i < nump; i++) {
+      players[i].index = sectors[i];
+      players[i].color = GetPlayerColor(sectors[i]);
+    }
+
+    // Init the cities
+    cityVals = new CityVals[9 * 6];
+    for (byte i = 0; i < cityVals.Length; i++)
+      cityVals[i] = new CityVals(i);
+
     // Assign a single city (population proportional to the difficulty) to each player
     for (int i = 0; i < nump; i++) {
-      PlayerStatus ps = players[i];
+      Player ps = players[i];
       int pos = 1 + 9 + (sectors[i] < 3 ? sectors[i] * 3 : sectors[i] * 3 + 9 * 2);
-      int cx = pos % 9;
-      int cy = pos / 9;
-      if (ps.isAI)
-        cities[pos].Set(5 + 5 * GD.difficulty, players[players[i].index]);
+      if (ps.def.type == PlayerDef.Type.AI)
+        cityVals[pos].Set(5 + 5 * GD.difficulty, ps.index);
       else
-        cities[pos].Set(10 - GD.difficulty, players[players[i].index]);
-      ps.cities.Add(pos);
+        cityVals[pos].Set(10 - GD.difficulty, ps.index);
+      ps.cities.Add((byte)pos);
+    }
+
+    // FIXME add some extra cities to debug social activities
+    for (int i = 0; i < 15; i++) {
+      int a = UnityEngine.Random.Range(0, 9 * 6);
+      if (cityVals[a].status == CityStatus.Empty)
+        cityVals[a].Set(UnityEngine.Random.Range(1, 50), players[i % 2].index);
+      players[i % 2].cities.Add((byte)a);
     }
 
     for (int i = 0; i < nump; i++)
       completed[i] = false;
   }
 
-
-  public void LeaveGame(string gamename, bool multiplayer) {
+  private Color32 GetPlayerColor(int pos) {
+    switch (pos) {
+      case 0: return new Color32(80, 80, 80, 255);
+      case 1: return new Color32(126, 145, 235, 255);
+      case 2: return new Color32(17, 241, 23, 255);
+      case 3: return new Color32(242, 231, 19, 255);
+      case 4: return new Color32(242, 18, 54, 255);
+      case 5: return new Color32(110, 18, 241, 255);
+    }
+    return Color.black;
+  }
+  public void LeaveGame(ulong gameid, bool multiplayer) {
     if (multiplayer) {
-      GD.instance.networkManager.LeaveGameClient(GD.thePlayer, gamename);
+      GD.instance.networkManager.LeaveGameClient(GD.thePlayer, gameid);
     }
   }
 
-  public void EndTurn(bool multiplayer, Player player, GameAction gameAction) {
+  public void EndTurn(bool multiplayer, ulong playerID, GameAction gameAction) {
     if (GD.IsStatus(LoaderStatus.Server, LoaderStatus.ServerBackground)) { // We are on the server
       // This call comes from the client listner
       // Find the player in the player list
       for (int i = 0; i < nump; i++)
-        if (players[i].id == player.ID) {
+        if (players[i].def.id == playerID) {
           completed[i] = true;
-          players[i].gameAction = gameAction;
+          players[i].action = gameAction.action;
+          players[i].val1 = gameAction.val1;
+          players[i].val2 = gameAction.val2;
           break;
         }
 
       // Auto-complete AI and defeated
       for (int i = 0; i < nump; i++)
-        if (players[i].isAI)
+        if (players[i].def.type == PlayerDef.Type.AI)
           completed[i] = true;
-        else if (players[i].defeated) {
+        else if (players[i].def.type == PlayerDef.Type.Defeated) {
           completed[i] = true;
-          players[i].gameAction = new GameAction();
+          players[i].action = ActionType.Nothing;
         }
 
       // All human players completed?
       bool allCompleted = true;
       for (int i = 0; i < nump; i++) {
-        if (!players[i].defeated && !players[i].isAI && !completed[i]) {
+        if (players[i].def.type != PlayerDef.Type.Defeated && players[i].def.type != PlayerDef.Type.AI && !completed[i]) {
           allCompleted = false;
           break;
         }
@@ -167,7 +173,7 @@ public class GameEngine {
       if (allCompleted) {
         GameEngineValues values = CalculateNextTurn();
         // Send the result to all the clients
-        GD.instance.networkManager.SendGameTurn(values);
+        GD.instance.networkManager.SendGameTurn(players, values);
         // And reset the completed
         for (int i = 0; i < nump; i++)
           completed[i] = false;
@@ -175,14 +181,16 @@ public class GameEngine {
     }
     else if (multiplayer) { // Multiplayer mode and we are the client
       // This call comes from the Renderer, Send the message to the server
-      GD.instance.networkManager.SendGameAction(player, gameAction);
+      GD.instance.networkManager.SendGameAction(GD.thePlayer, gameAction);
     }
     else { // Single player mode
       // This call comes from the Renderer, so we can process it right now: CalculateNextTurn
       for (int i = 0; i < nump; i++)
-        if (players[i].id == player.ID) {
+        if (players[i].def.id == playerID) {
           completed[i] = true;
-          players[i].gameAction = gameAction;
+          players[i].action = gameAction.action;
+          players[i].val1 = gameAction.val1;
+          players[i].val2 = gameAction.val2;
           break;
         }
       GameEngineValues values = CalculateNextTurn();
@@ -192,35 +200,19 @@ public class GameEngine {
 
   public GameEngineValues CalculateNextTurn() {
     GameEngineValues values = new GameEngineValues(this);
-    foreach (PlayerStatus p in players) {
-      if (p == null || p.defeated) continue;
+    foreach (Player p in players) {
+      if (p == null || p.def.type == PlayerDef.Type.Defeated) continue;
       CalculateResources(p, values);
       CalculatePopulation(p, values);
     }
     CalculateOrder(values);
     for (int i = 0; i < nump; i++) {
       if (values.order[i] == 255) continue;
-      PlayerStatus p = players[values.order[i]];
-      if (p == null || p.defeated) continue;
+      Player p = players[values.order[i]];
+      if (p == null || p.def.type == PlayerDef.Type.Defeated) continue;
       CalculateActions(p, values); // Actions are computed after order is defined
     }
 
-    // At this point we should actually execute the action and decide the outcome
-    // The outcome should be serialized to be used in the renderer (after sending it, in case of multiplayer)
-
-
-
-
-    /*
-     
-    Here we should calculate, for each player, the resources and population
-    For the AIs (not defeated) we should calculate the next action
-    Calculate the results of all actions (success, failures, etc.)
-
-    Broadcast to all clients the results (multiplayer mode)
-    Add a "message" with the results (single player mode)
-
-     */
     return values;
   }
 
@@ -231,42 +223,39 @@ public class GameEngine {
   }
 
 
-  public void CalculateResources(PlayerStatus p, GameEngineValues values) {
+  public void CalculateResources(Player p, GameEngineValues values) {
     // Find the place for the current player
     int pindex = -1;
     for (int i = 0; i < players.Length; i++) {
-      if (players[i].id == p.id) {
+      if (players[i].def.id == p.def.id) {
         pindex = i;
         break;
       }
     }
     if (pindex==-1) {
-      GD.DebugLog("CalculateResources: Cannot find the specified player id=" + p.id, GD.LT.Debug);
+      GD.DebugLog("CalculateResources: Cannot find the specified player id=" + p, GD.LT.Debug);
       return;
     }
     // Food ************************************************************************************************************************************************************
     // Food +1 per city, +10 per farm, city_production*2 per hydrofarm
-    int produced = p.cities.Count;
+    short produced = (short)p.cities.Count;
     foreach (int cityIndex in p.cities) {
-      if (cities[cityIndex].improvements[(int)ItemType.IFARM - (int)ProductionType.Improvement]) produced += 10;
-      if (cities[cityIndex].improvements[(int)ItemType.IHFRM - (int)ProductionType.Improvement]) produced += 15;
+      if (cityVals[cityIndex].HasImprovement((int)ItemType.IFARM - (int)ProductionType.Improvement)) produced += 10;
+      if (cityVals[cityIndex].HasImprovement((int)ItemType.IHFRM - (int)ProductionType.Improvement)) produced += 15;
     }
-    values.players[pindex].Food[1] = produced;
+    players[pindex].Resources[(int)ResourceType.Food, 1] = produced;
     // Consume the food, 1 unit for each 10 millions population, but use floor to allow basic production
     int population = 0;
     foreach (int cityIndex in p.cities) {
-      population += cities[cityIndex].population;
+      population += cityVals[cityIndex].population;
     }
-    values.players[pindex].Food[2] = population / 10;
-    values.players[pindex].Food[0] = p.Food[0] + values.players[pindex].Food[1] - values.players[pindex].Food[2];
-    if (values.players[pindex].Food[0] < 0) values.players[pindex].Food[0] = 0; // FIXME add some problem for the enemy, do a message to the player to show there is not enough food
+    // FIXME here we want to set the vals to a new spot
+    players[pindex].Resources[(int)ResourceType.Food, 2] = (short)(population / 10);
+    players[pindex].Resources[(int)ResourceType.Food, 0] = (short)(players[pindex].Resources[(int)ResourceType.Food, 0] + players[pindex].Resources[(int)ResourceType.Food, 1] - players[pindex].Resources[(int)ResourceType.Food, 2]);
+    if (players[pindex].Resources[(int)ResourceType.Food, 0] < 0) players[pindex].Resources[(int)ResourceType.Food, 0] = 0; // FIXME add some problem for the enemy, do a message to the player to show there is not enough food
 
 
     // Iron ************************************************************************************************************************************************************
-    // FIXME this is for debug
-    values.players[pindex].Iron[0] = 11;
-    values.players[pindex].Iron[1] = 22;
-    values.players[pindex].Iron[2] = 33;
 
     // Aluminum ************************************************************************************************************************************************************
     // Uranium ************************************************************************************************************************************************************
@@ -280,29 +269,45 @@ public class GameEngine {
     // FIXME
   }
 
-  public void CalculatePopulation(PlayerStatus p, GameEngineValues values) {
+  internal Player GetPlayerByIndex(byte index) {
+    for (int i = 0; i < nump; i++)
+      if (players[i].index == index) {
+        return players[i];
+      }
+    return null;
+  }
+
+  internal Player GetPlayerByID(ulong id) {
+    for (int i = 0; i < nump; i++)
+      if (players[i].def.id == id) {
+        return players[i];
+      }
+    return null;
+  }
+
+  public void CalculatePopulation(Player p, GameEngineValues values) {
     // Find the place for the current player
     int pindex = -1;
     for (int i = 0; i < players.Length; i++) {
-      if (players[i].id == p.id) {
+      if (players[i].def.id == p.def.id) {
         pindex = i;
         break;
       }
     }
     if (pindex == -1) {
-      GD.DebugLog("CalculateResources: Cannot find the specified player id=" + p.id, GD.LT.Debug);
+      GD.DebugLog("CalculateResources: Cannot find the specified player id=" + p, GD.LT.Debug);
       return;
     }
     // FIXME
     // Increase the population in case there is enough food, in case the food is zero and the consumption is high, let people starve
     // The increase should be about *1.05 with at least 1 of increase
 
-    if (values.players[pindex].Food[0] > 0 || values.players[pindex].Food[1] == values.players[pindex].Food[2]) {
+    if (players[pindex].Resources[(int)ResourceType.Food, 0] > 0 || players[pindex].Resources[(int)ResourceType.Food, 1] == players[pindex].Resources[(int)ResourceType.Food, 2]) {
       foreach (int cityIndex in p.cities) {
-        City src = cities[cityIndex];
+        CityVals src = cityVals[cityIndex];
         CityVals dst = values.cities[cityIndex];
         if (dst == null) {
-          dst = new CityVals(src, (byte)pindex);
+          dst = new CityVals(src);
           values.cities[cityIndex] = dst;
         }
 
@@ -311,7 +316,7 @@ public class GameEngine {
         if (src.status == CityStatus.Radioactive) {
           increase = -1;
         }
-        else if (src.population + increase > 25 && !src.improvements[(int)ItemType.IHOUS - (int)ProductionType.Improvement]) {
+        else if (src.population + increase > 25 && !src.HasImprovement((int)ItemType.IHOUS - (int)ProductionType.Improvement)) {
           increase = 25 - src.population;
           if (increase < 0) increase = 0;
         }
@@ -337,8 +342,8 @@ public class GameEngine {
     // Pick all other players, randomize, and place after the first ones
     List<int> list = new List<int>();
     for (int i = 0; i < nump; i++) {
-      if (players[i].defeated) continue;
-      if (players[i].gameAction.action == ActionType.Defend || players[i].gameAction.action == ActionType.Diplomacy || players[i].gameAction.action == ActionType.Social)
+      if (players[i].def.type == PlayerDef.Type.Defeated) continue;
+      if (players[i].action == ActionType.Defend || players[i].action == ActionType.Diplomacy || players[i].action == ActionType.Social)
         list.Add(i);
     }
     int pos = list.Count;
@@ -356,8 +361,8 @@ public class GameEngine {
 
     list.Clear();
     for (int i = 0; i < nump; i++) {
-      if (players[i].defeated) continue;
-      if (players[i].gameAction.action != ActionType.Defend && players[i].gameAction.action != ActionType.Diplomacy && players[i].gameAction.action != ActionType.Social)
+      if (players[i].def.type == PlayerDef.Type.Defeated) continue;
+      if (players[i].action != ActionType.Defend && players[i].action != ActionType.Diplomacy && players[i].action != ActionType.Social)
         list.Add(i);
     }
     if (list.Count > 0) {
@@ -393,9 +398,9 @@ public class GameEngine {
     }
   }
 
-  private void CalculateActions(PlayerStatus p, GameEngineValues values) {
+  private void CalculateActions(Player p, GameEngineValues values) {
     // Depending on the action we may need to do something
-    switch (p.gameAction.action) {
+    switch (p.action) {
       case ActionType.Nothing: break;
       case ActionType.FindResources: // Double the production of resources and add some extra random resource based on the population size
         ExecuteFindResources(p, values);
@@ -406,7 +411,9 @@ public class GameEngine {
       case ActionType.BuildImprovement:
         ExecuteBuildImprovement(p, values);
         break;
-      case ActionType.Social: break;
+      case ActionType.Social:
+        ExecuteSocialActivities(p);
+        break;
       case ActionType.BuildWeapons: break;
       case ActionType.DeployWeapons: break;
       case ActionType.UseWeapons: break;
@@ -418,165 +425,139 @@ public class GameEngine {
     }
   }
 
-  private void ExecuteFindResources(PlayerStatus p, GameEngineValues values) {
-    values.players[p.index].Food[1] *= 2;
-    values.players[p.index].Iron[1] *= 2;
-    values.players[p.index].Aluminum[1] *= 2;
-    values.players[p.index].Uranium[1] *= 2;
-    values.players[p.index].Plutonium[1] *= 2;
-    values.players[p.index].Hydrogen[1] *= 2;
-    values.players[p.index].Plastic[1] *= 2;
-    values.players[p.index].Electronics[1] *= 2;
-    values.players[p.index].Composite[1] *= 2;
-    values.players[p.index].FossilFuels[1] *= 2;
+  private void ExecuteFindResources(Player p, GameEngineValues values) {
+    p.Resources[(int)ResourceType.Food, 1] *= 2;
+    p.Resources[(int)ResourceType.Iron, 1] *= 2;
+    p.Resources[(int)ResourceType.Aluminum, 1] *= 2;
+    p.Resources[(int)ResourceType.Uranium, 1] *= 2;
+    p.Resources[(int)ResourceType.Plutonium, 1] *= 2;
+    p.Resources[(int)ResourceType.Hydrogen, 1] *= 2;
+    p.Resources[(int)ResourceType.Plastic, 1] *= 2;
+    p.Resources[(int)ResourceType.Electronics, 1] *= 2;
+    p.Resources[(int)ResourceType.Composite, 1] *= 2;
+    p.Resources[(int)ResourceType.FossilFuels, 1] *= 2;
 
     int population = 0;
     foreach (int cityIndex in p.cities) {
-      population += cities[cityIndex].population;
+      population += cityVals[cityIndex].population;
     }
 
-    values.players[p.index].Food[1] += GD.GetRandom(0, population);
-    values.players[p.index].Iron[1] += GD.GetRandom(0, 2 * population / 3);
-    values.players[p.index].Aluminum[1] += GD.GetRandom(0, population / 3);
-    values.players[p.index].Uranium[1] += GD.GetRandom(0, population / 4);
-    values.players[p.index].Plutonium[1] += GD.GetRandom(0, population / 8);
-    values.players[p.index].Hydrogen[1] += GD.GetRandom(0, population / 10);
-    values.players[p.index].Plastic[1] += GD.GetRandom(0, population / 5);
-    values.players[p.index].Electronics[1] += GD.GetRandom(0, population / 7);
-    values.players[p.index].Composite[1] += GD.GetRandom(0, population / 20);
-    values.players[p.index].FossilFuels[1] += GD.GetRandom(0, population / 9);
+    p.Resources[(int)ResourceType.Food, 1] += (short)GD.GetRandom(0, population);
+    p.Resources[(int)ResourceType.Iron, 1] += (short)GD.GetRandom(0, 2 * population / 3);
+    p.Resources[(int)ResourceType.Aluminum, 1] += (short)GD.GetRandom(0, population / 3);
+    p.Resources[(int)ResourceType.Uranium, 1] += (short)GD.GetRandom(0, population / 4);
+    p.Resources[(int)ResourceType.Plutonium, 1] += (short)GD.GetRandom(0, population / 8);
+    p.Resources[(int)ResourceType.Hydrogen, 1] += (short)GD.GetRandom(0, population / 10);
+    p.Resources[(int)ResourceType.Plastic, 1] += (short)GD.GetRandom(0, population / 5);
+    p.Resources[(int)ResourceType.Electronics, 1] += (short)GD.GetRandom(0, population / 7);
+    p.Resources[(int)ResourceType.Composite, 1] += (short)GD.GetRandom(0, population / 20);
+    p.Resources[(int)ResourceType.FossilFuels, 1] += (short)GD.GetRandom(0, population / 9);
   }
 
 
-  private void ExecuteResearchTechnology(PlayerStatus p) {
-    p.techs[p.gameAction.val].available = true;
+  private void ExecuteResearchTechnology(Player p) {
+    p.techs[p.val1] = true;
   }
 
-  private void ExecuteBuildImprovement(PlayerStatus p, GameEngineValues values) {
-    long imp = 0;
-    for (int i = 0; i < cities[p.gameAction.targetCity].improvements.Length; i++)
-      if (cities[p.gameAction.targetCity].improvements[i])
-        imp |= (long)(1 << i);
-
-    imp |= values.cities[p.gameAction.targetCity].improvementsBF;
-    imp = (imp) | ((long)(1 << p.gameAction.val));
-    values.cities[p.gameAction.targetCity].improvementsBF = imp;
+  private void ExecuteBuildImprovement(Player p, GameEngineValues values) {
+    long imp = cityVals[p.val1].improvementsBF;
+    imp |= values.cities[p.val1].improvementsBF;
+    imp = (imp) | ((long)(1 << p.val2));
+    values.cities[p.val1].improvementsBF = imp;
   }
 
+  private void ExecuteSocialActivities(Player p) {
+    // Alter only the happiness here
+    p.happiness += 5;
+    if (p.happiness > 100) p.happiness = 100;
+  }
 
+  private void ExecuteSettleCity(Player p, GameEngineValues values) {
+    // Pick the closest city with max population, halve the population of the src city and send people to the target city
+    // Do we need to do it here? I suppose the action will be the same on all clients. The problem is that we need to run the actions if we are server side. Or we will not be able to process the AI
+  }
 
 
   public void Destroy() {
     players = null;
     completed = null;
-    cities = null;
+    cityVals = null;
     messages.Clear();
     mySelf = null;
     game = null;
   }
 
-
-  public PlayerStatus GetPlayerStatusByIndex(byte index) {
-    for (int i = 0; i < nump; i++)
-      if (players[i].index == index) return players[i];
-    return null;
-  }
 }
 
 
 
 // *************************************** GameEngineValues *********************************************************************************************************************************
-// Used to decode the values and then update the Engine
+// Used to keep the status of the game
+
+
+
 
 public class GameEngineValues {
-  public readonly string gamename;
-  public readonly byte[] order;
+  public ulong gameid;
+  public byte[] order; // Players execution order
+  public GameAction[] actions; // Players actions
   public readonly CityVals[] cities;
-  public readonly PlayerStatus[] players;
+
 
   public GameEngineValues(GameEngine engine) {
-    gamename = engine.game.Name;
+    gameid = engine.game.id;
     order = new byte[6];
+    actions = new GameAction[6];
     cities = new CityVals[9 * 6];
     for (int i = 0; i < 9 * 6; i++)
-      if (engine.cities[i].status != CityStatus.Empty)
-        cities[i] = new CityVals(engine.cities[i], GetCityOwnerByte(engine, engine.cities[i].owner));
-    players = new PlayerStatus[6];
-    for (int i = 0; i < 6; i++)
-      players[i] = engine.players[i];
-  }
-
-  private byte GetCityOwnerByte(GameEngine engine, PlayerStatus owner) {
-    for (int i = 0; i < engine.players.Length; i++)
-      if (engine.players[i].id == owner.id) return (byte)engine.players[i].index;
-    return 255;
+      if (engine.cityVals[i].status != CityStatus.Empty)
+        cities[i] = new CityVals(engine.cityVals[i]);
   }
 
   public byte[] Serialize() {
-    byte[] gd = System.Text.Encoding.UTF8.GetBytes(gamename);
-    int len = 2 + // Full length
-              1 + gd.Length + // Game name
+    int len = 8 + // Game ID
               6 + // Order for actions
-              9 * 6 * 14 + // Status of each city
-              6 * GD._PlayerStatusLen + // Status of each player including its action
-              1; // Outcomes FIXME
+              6 * 3 + // Game actions
+              9 * 6 * 14; // Status of each city
     byte[] res = new byte[len];
-    short len16 = (short)len;
-    byte[] d = System.BitConverter.GetBytes(len16);
-    res[0] = d[0];
-    res[1] = d[1];
-
-    res[2] = (byte)gd.Length;
-    for (int i = 0; i < gd.Length; i++)
-      res[3 + i] = gd[i];
-    int pos = 3 + gd.Length;
-
-    res[pos + 0] = order[0];
-    res[pos + 1] = order[1];
-    res[pos + 2] = order[2];
-    res[pos + 3] = order[3];
-    res[pos + 4] = order[4];
-    res[pos + 5] = order[5];
-    pos += 6;
+    byte[] d = System.BitConverter.GetBytes(gameid);
+    int pos = 0;
+    for (int i = 0; i < 8; i++)
+      res[pos++] = d[i];
+    for (int i = 0; i < 6; i++)
+      res[pos++] = order[i];
+    for (int i = 0; i < 6; i++) {
+      d = actions[i].Serialize();
+      for (int j = 0; j < 3; j++) 
+        res[pos++] = d[i];
+    }
 
     for (int i = 0; i < cities.Length; i++) {
       if (cities[i] == null) {
-        for (int j = 0; j < 14; j++) res[pos + j] = 255;
+        for (int j = 0; j < 14; j++) res[pos++] = 255;
       }
       else {
         d = cities[i].Serialize();
         for (int j = 0; j < d.Length; j++)
-          res[pos + j] = d[j];
+          res[pos++] = d[j];
       }
-      pos += 14;
     }
-    for (int i = 0; i < 6; i++) {
-      PlayerStatus ps = players[i];
-      if (ps != null) {
-        d = ps.Serialize();
-        for (int j = 0; j < d.Length; j++)
-          res[pos + j] = d[j];
-        pos += d.Length;
-      }
-      else
-        pos += GD._PlayerStatusLen;
-    }
-
-    // FIXME outcomes!!!
 
     return res;
   }
 
 
   public GameEngineValues(byte[] data) {
-    int pos = data[2];
-    gamename = System.Text.Encoding.UTF8.GetString(data, 3, pos);
-    pos += 3;
-
+    gameid = System.BitConverter.ToUInt64(data, 0);
+    int pos = 8;
     order = new byte[6];
     for (int i = 0; i < 6; i++)
-      order[i] = data[pos + i];
-    pos += 6;
+      order[i] = data[pos++];
+    for (int i = 0; i < 6; i++) {
+      actions[i].action = (ActionType)data[pos++];
+      actions[i].val1 = data[pos++];
+      actions[i].val2 = data[pos++];
+    }
 
     cities = new CityVals[9 * 6];
     for (int i = 0; i < 9 * 6; i++) {
@@ -585,14 +566,6 @@ public class GameEngineValues {
         cities[i] = cv;
       pos += 14;
     }
-
-    players = new PlayerStatus[6];
-    for (int i = 0; i < 6; i++) {
-      players[i] = new PlayerStatus(data, pos);
-      pos += GD._PlayerStatusLen;
-    }
-
-    // FIXME outcomes
   }
 }
 
@@ -603,14 +576,26 @@ public class CityVals {
   public CityStatus status;
   public byte owner;
 
-  public CityVals(City src, byte owner) {
-    pos = (byte)src.pos;
+  public CityVals(CityVals src) {
+    pos = src.pos;
     population = src.population;
     status = src.status;
-    this.owner = owner;
+    owner = src.owner;
+    improvementsBF = src.improvementsBF;
+  }
+
+  public CityVals(byte position) {
+    pos = position;
     improvementsBF = 0;
-    for (int i = 0; i < src.improvements.Length; i++)
-      if (src.improvements[i]) improvementsBF = (improvementsBF) | ((long)(1 << i));
+    population = 0;
+    status = CityStatus.Empty;
+    owner = 255;
+  }
+
+  public void Set(int pop, byte index) {
+    population = pop;
+    owner = index;
+    status = pop > 0 ? CityStatus.Owned : CityStatus.Empty;
   }
 
   public byte[] Serialize() {
@@ -644,5 +629,13 @@ public class CityVals {
     population = System.BitConverter.ToInt32(data, start + 9);
     owner = (byte)(data[start + 9 + 4] & 3);
     status = (CityStatus)((data[start + 9 + 4] & 248) >> 3);
+  }
+
+  public bool HasImprovement(int imp) {
+    return (improvementsBF & (1 << imp)) != 0;
+  }
+
+  internal void SetImprovement(int val) {
+    improvementsBF |= (long)(1 << val);
   }
 }

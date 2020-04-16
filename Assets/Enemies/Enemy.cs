@@ -10,11 +10,12 @@ public class Enemy : MonoBehaviour {
   // Split properties used to run the game from the ones required to represent the gameobject
 
   [SerializeField]
-  public PlayerStatus stats;
+  public Player player;
 
     // ********************** gobject **********************  
   public SpriteAtlas sprites;
-  public Balloon balloon;
+  private Balloon balloon;
+  public GameObject BalloonTemplate;
   private Sprite[] Eyes;
   private Sprite[] Mouths;
   private Image DeadEyeL;
@@ -34,8 +35,16 @@ public class Enemy : MonoBehaviour {
     public Enemy enemy;
   }
 
-  public void SetEnemy(string name, int avatar, ulong id) { // FIXME this may be no more necessary
-    stats.name = name;
+  public void Destroy() {
+    if (balloon != null) GameObject.Destroy(balloon.gameObject);
+    GameObject.Destroy(gameObject);
+  }
+
+  public void SetEnemyAsPlayer(string name, byte avatar, ulong id) { // FIXME this may be no more necessary
+    if (player == null) {
+      player = new Player(name, avatar);
+      player.def.id = id;
+    }
     NameTxt = transform.Find("Name").GetComponent<TextMeshProUGUI>();
     NameTxt.text = name;
     transform.Find("Face").GetComponent<Image>().sprite = GD.instance.AvatarsList[avatar];
@@ -43,27 +52,25 @@ public class Enemy : MonoBehaviour {
     transform.Find("DeadEyeR").GetComponent<Image>().enabled = false;
     transform.Find("Mouth").GetComponent<Image>().enabled = false;
     transform.Find("Eyes").GetComponent<Image>().enabled = false;
-    stats.isAI = false;
-    stats.id = id;
-    stats.avatar = avatar;
-    stats.color = new Color32(0, 0, 0, 255);
+    player.def.type = PlayerDef.Type.Human;
+    player.color = new Color32(0, 0, 0, 255);
   }
 
   private void Awake() {
-    if (stats.isAI) {
+    if (player.def.type == PlayerDef.Type.AI) {
       NameTxt = transform.Find("Name").GetComponent<TextMeshProUGUI>();
-      NameTxt.text = stats.name;
+      NameTxt.text = player.def.name;
       Mouths = new Sprite[5];
       for (int i = 1; i < 6; i++)
-        Mouths[i - 1] = sprites.GetSprite(stats.name + "_" + i);
+        Mouths[i - 1] = sprites.GetSprite(player.def.name + "_" + i);
       Eyes = new Sprite[6];
       for (int i = 6; i < 12; i++)
-        Eyes[i - 6] = sprites.GetSprite(stats.name + "_" + i);
+        Eyes[i - 6] = sprites.GetSprite(player.def.name + "_" + i);
       DeadEyeL = transform.Find("DeadEyeL").GetComponent<Image>();
       DeadEyeR = transform.Find("DeadEyeR").GetComponent<Image>();
       Mouth = transform.Find("Mouth").GetComponent<Image>();
       Eye = transform.Find("Eyes").GetComponent<Image>();
-      transform.Find("Face").GetComponent<Image>().sprite = sprites.GetSprite(stats.name + "_0");
+      transform.Find("Face").GetComponent<Image>().sprite = sprites.GetSprite(player.def.name + "_0");
       DeadEyeL.enabled = false;
       DeadEyeR.enabled = false;
       SetMood(Mood.Normal, true);
@@ -71,7 +78,7 @@ public class Enemy : MonoBehaviour {
   }
 
   private void Update() {
-    if (stats.defeated || !stats.isAI) return;
+    if (player.def.type == PlayerDef.Type.Defeated || player.def.type != PlayerDef.Type.AI) return;
     if (mood == Mood.Normal) {
       if (Random.Range(0, 1000) == 0) {
         Mouth.sprite = Mouths[Random.Range(0, 3)];
@@ -103,7 +110,7 @@ public class Enemy : MonoBehaviour {
   }
 
   public void SetMood(Mood m, bool silent = false, BalloonDirection dir = BalloonDirection.TL) {
-    if (stats.defeated || !stats.isAI) return;
+    if (player.def.type == PlayerDef.Type.Defeated || player.def.type != PlayerDef.Type.AI) return;
     mood = m;
     eyes = ((int)m) % 6;
     mouth = ((int)m) / 6;
@@ -118,7 +125,7 @@ public class Enemy : MonoBehaviour {
   }
 
   public void SetExpression(int e, int m) {
-    if (stats.defeated || !stats.isAI) return;
+    if (player.def.type == PlayerDef.Type.Defeated || player.def.type != PlayerDef.Type.AI) return;
     eyes = e;
     mouth = m;
     Eye.sprite = Eyes[eyes];
@@ -126,7 +133,7 @@ public class Enemy : MonoBehaviour {
   }
 
   public void Defeat() {
-    if (stats.isAI) {
+    if (player.def.type == PlayerDef.Type.AI) {
       SetMood(Mood.FeelingPain, true);
       DeadEyeL.enabled = true;
       DeadEyeR.enabled = true;
@@ -136,20 +143,23 @@ public class Enemy : MonoBehaviour {
       DeadEyeL.enabled = true;
       DeadEyeR.enabled = false;
     }
-    stats.defeated = true;
+    player.def.type = PlayerDef.Type.Defeated;
   }
 
 
   public void OnClick() {
-    if (stats.isAI)
-      OnAlterPlayer?.Invoke(this, new AlterPlayerEvent { enemy = this });
-    else if (ChatManager.instance != null && GD.thePlayer != null && GD.thePlayer.ID != stats.id)
-      ChatManager.instance.StartChatWith(stats.id, stats.name, stats.avatar);
+    if (player.def.type != PlayerDef.Type.AI && ChatManager.instance != null && GD.thePlayer != null && GD.thePlayer.ID != player.def.id)
+      ChatManager.instance.StartChatWith(player.def.id, player.def.name, player.def.avatar);
+    OnAlterPlayer?.Invoke(this, new AlterPlayerEvent { enemy = this });
   }
 
   Coroutine sayLaterCoroutine = null;
 
   public void SayLater(int pos) {
+    if (balloon == null) { // Check if we have a balloon, if not instantiate one
+      balloon = Instantiate(BalloonTemplate, BalloonTemplate.transform.parent).GetComponent<Balloon>();
+    }
+
     if (sayLaterCoroutine != null) StopCoroutine(sayLaterCoroutine);
     sayLaterCoroutine = StartCoroutine(SayLater(pos, GetIntroMessage(), pos % 2 == 0 ? BalloonDirection.TR : BalloonDirection.BR));
   }
@@ -163,9 +173,8 @@ public class Enemy : MonoBehaviour {
 
 
   public void Say(string text, BalloonDirection dir) {
-    if (balloon == null) {
-      GD.DebugLog("Missing balloon for " + stats.name, GD.LT.Error);
-      return;
+    if (balloon == null) { // Check if we have a balloon, if not instantiate one
+      balloon = Instantiate(BalloonTemplate, BalloonTemplate.transform.parent).GetComponent<Balloon>();
     }
 
     Vector3[] corners = new Vector3[4];
@@ -190,6 +199,7 @@ public class Enemy : MonoBehaviour {
   }
 
   public void HideBalloon() {
+    if (balloon == null) return;
     if (sayLaterCoroutine != null) StopCoroutine(sayLaterCoroutine);
     sayLaterCoroutine = null;
     balloon.Hide();

@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 
 public class ChatManager : MonoBehaviour {
-  private Player player;
+  private PlayerHandler player;
   private Dictionary<ChatID, Chat> chats;
   public GameObject ChatTemplate;
   public GameObject Chats;
@@ -12,7 +12,7 @@ public class ChatManager : MonoBehaviour {
 
   public static ChatManager instance;
 
-  public void Startup(Player player) {
+  public void Startup(PlayerHandler player) {
     this.player = player;
     chats = new Dictionary<ChatID, Chat>();
     eventsQueue = new Queue<NetworkManager.ChatMessage>();
@@ -28,7 +28,7 @@ public class ChatManager : MonoBehaviour {
       Chats.SetActive(false);
   }
 
-  public void EndChats(Player thePlayer) {
+  public void EndChats(PlayerHandler thePlayer) {
     List<Chat> toBeRemoved = new List<Chat>();
     foreach(Chat chat in chats.Values)
       if (chat.IsPlayer(thePlayer))

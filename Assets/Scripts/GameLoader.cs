@@ -89,6 +89,7 @@ public class GameLoader : MonoBehaviour {
     }
     serverMessagesNum = 0;
     cam = Camera.main;
+    introMusic.Play();
   }
 
   public void Restart() {
@@ -103,6 +104,7 @@ public class GameLoader : MonoBehaviour {
       MultiplePlayers();
     else
       SinglePlayer();
+    introMusic.Play();
   }
 
   public Enemy[] GetEnemies() {
@@ -118,7 +120,7 @@ public class GameLoader : MonoBehaviour {
         num++;
     }
     // The enemies should be sorted by name, so the index will be the same on all clients and on the server
-    System.Array.Sort(res, (a, b) => a.stats.name.CompareTo(b.stats.name));
+    System.Array.Sort(res, (a, b) => a.player.def.name.CompareTo(b.player.def.name));
 
     return res;
   }
@@ -400,24 +402,24 @@ public class GameLoader : MonoBehaviour {
           break;
         case ServerMessages.GameCreated:
           SetInfo(message.message);
-          GameTxt.text = "Game joined: " + GameName.text;
-          GD.thePlayer.CurrentGame = GameName.text;
+          GameTxt.text = "Game created and joined: " + GameName.text;
+          GD.thePlayer.currentGameID = message.id;
           CreateGameLine.SetActive(false);
           break;
         case ServerMessages.GameJoined:
           SetInfo("Joined game \"" + message.message + "\"");
           GameTxt.text = "Game joined: " + message.message;
-          GD.thePlayer.CurrentGame = message.message;
+          GD.thePlayer.currentGameID = message.id;
           break;
         case ServerMessages.GameLeft:
           SetInfo("Left game \"" + message.message + "\"");
           GameTxt.text = "";
-          GD.thePlayer.CurrentGame = null;
+          GD.thePlayer.currentGameID = 0;
           break;
         case ServerMessages.GameDeleted:
           SetInfo("The game \"" + message.message + "\" was deleted");
-          if (GD.thePlayer.CurrentGame == message.message) {
-            GD.thePlayer.CurrentGame = null;
+          if (GD.thePlayer.currentGameID == message.id) {
+            GD.thePlayer.currentGameID = 0;
             GameTxt.text = "";
           }
           break;
@@ -436,10 +438,10 @@ public class GameLoader : MonoBehaviour {
           break;
 
         case ServerMessages.PlayersOfGame:
-          if (message.gameplayers != null) {
+          if (message.playersList != null) {
             List<ChatParticipant> participants = new List<ChatParticipant>();
-            for (int i = 0; i > message.gameplayers.Count; i++) {
-              participants.Add(new ChatParticipant(message.gameplayers[i].name, message.gameplayers[i].avatar, message.gameplayers[i].id));
+            for (int i = 0; i > message.playersList.Count; i++) {
+              participants.Add(new ChatParticipant(message.playersList[i].name, message.playersList[i].avatar, message.playersList[i].id));
             }
             chat.StartChatWith(message.message, participants);
           }
@@ -451,18 +453,18 @@ public class GameLoader : MonoBehaviour {
             ActualGameStart(false); // Single player
           }
           else if (message.num == 0) { // Multiplayer. Not all players started
-            GD.DebugLog("Waiting for players to start the game: " + message.message + " with " + message.gameplayers.Count + " players", GD.LT.Log);
+            GD.DebugLog("Waiting for players to start the game: " + message.id + " with " + message.playersList.Count + " players", GD.LT.Log);
             // Just update the user interface to wait for people to join/start
             foreach (Transform t in MultiPlayersGrid)
               GameObject.Destroy(t.gameObject);
-            for (int i = 0; i < message.gameplayers.Count; i++) {
-              SimplePlayer sp = message.gameplayers[i];
+            for (int i = 0; i < message.playersList.Count; i++) {
+              PlayerDef sp = message.playersList[i];
               GameObject pl = Instantiate(PlayerStartingTemplate, MultiPlayersGrid);
               pl.SetActive(true);
               pl.transform.Find("Player").GetComponent<TextMeshProUGUI>().text = "<sprite=" + sp.avatar + "> " + sp.name;
-              pl.transform.Find("Status").GetComponent<TextMeshProUGUI>().text = sp.status == StatusOfPlayer.StartingGame ? "Ready!" : "Waiting for player to start...";
+              pl.transform.Find("Status").GetComponent<TextMeshProUGUI>().text = sp.Status == PlayerGameStatus.StartingGame ? "Ready!" : "Waiting for player to start...";
               pl.transform.Find("Chat").gameObject.SetActive(sp.id != GD.thePlayer.ID);
-              pl.transform.Find("Chat").GetComponent<Button>().onClick.AddListener(delegate { StartChatWith(message.message); });
+              pl.transform.Find("Chat").GetComponent<Button>().onClick.AddListener(delegate { StartChatWith(message.id); });
             }
           }
           else if (message.num == 1) { // Multiplayer. Actual start
@@ -505,22 +507,21 @@ public class GameLoader : MonoBehaviour {
       game.multiplayer = true;
       game.engine = new GameEngine(GD.thePlayer);
       game.engine.InitEnemiesMultiplayer(game);
-      GD.thePlayer.TheGame = game;
+      GD.thePlayer.currentGameID = game.id;
     }
     else { // Single player
       GD.difficulty = DifficultySP.value;
-      game = new Game("Single Player", GD.thePlayer, GD.difficulty, 1, NumberOfEnemiesDropDown.value + 1) {
+      game = new Game("Single Player", GD.thePlayer.player, GD.difficulty, 1, NumberOfEnemiesDropDown.value + 1) {
         engine = new GameEngine(GD.thePlayer)
       };
       game.multiplayer = false;
       game.rndSeed = Random.Range(-75000, 75000); // We will not receive a random seed from the server, so just create a local one, we are in SinglePlayer
       // Pick the actual AIs and initialize the Enemies of the engine
       game.engine.InitEnemiesSingleplayer(game, SelectedEnemies);
-      GD.thePlayer.TheGame = game;
+      GD.thePlayer.currentGameID = game.id;
     }
 
     // Start the actual game
-    game.localPlayer = GD.thePlayer;
     gameRenderer.Init(game);
     world.gameObject.SetActive(false);
     title.SetActive(false);
@@ -624,7 +625,7 @@ public class GameLoader : MonoBehaviour {
 
   public void AlterPlayer(object sender, Enemy.AlterPlayerEvent e) {
     // Stop the previous message
-    e.enemy.HideBalloon();
+    ((Enemy)sender).HideBalloon();
     // Pick a new one
     Transform newEnemy = EnemiesStorage.GetChild(Random.Range(0, EnemiesStorage.childCount));
     // Find the enemy inside the SelectedEnemies (position is important)
@@ -739,17 +740,18 @@ public class GameLoader : MonoBehaviour {
     updateQuicklyCam = true;
     if (GD.thePlayer == null) {
       if (string.IsNullOrWhiteSpace(PlayerName.text))
-        GD.thePlayer = new Player("Player", playerAvatar);
+        GD.thePlayer = new PlayerHandler("Player", (byte)playerAvatar);
       else
-        GD.thePlayer = new Player(PlayerName.text, playerAvatar);
+        GD.thePlayer = new PlayerHandler(PlayerName.text, (byte)playerAvatar);
     }
 
     // Add a stub message to actually start the game
     serverMessages[serverMessagesNum].type = ServerMessages.StartingTheGame;
-    serverMessages[serverMessagesNum].message = GD.thePlayer.CurrentGame;
+    serverMessages[serverMessagesNum].message = null;
     serverMessages[serverMessagesNum].gameList = null;
     serverMessages[serverMessagesNum].playersList = null;
     serverMessages[serverMessagesNum].num = 2;
+    serverMessages[serverMessagesNum].id = GD.thePlayer.currentGameID;
     serverMessagesNum++;
   }
 
@@ -786,12 +788,12 @@ public class GameLoader : MonoBehaviour {
     if (!GD.instance.networkManager.alreadyStarted) GD.instance.networkManager.StartUpClient();
     int.TryParse(ServerPort.text, out int ip);
     if (GD.thePlayer == null) {
-      GD.thePlayer = new Player(PlayerName.text, playerAvatar);
+      GD.thePlayer = new PlayerHandler(PlayerName.text, (byte)playerAvatar);
     }
     else if (!GD.thePlayer.Name.Equals(PlayerName.text) || GD.thePlayer.Avatar != playerAvatar) {
       GD.instance.networkManager.DisconnectFromServer(GD.thePlayer);
       chat.EndChats(GD.thePlayer);
-      GD.thePlayer = new Player(PlayerName.text, playerAvatar);
+      GD.thePlayer = new PlayerHandler(PlayerName.text, (byte)playerAvatar);
     }
     string res = GD.instance.networkManager.ConnectToServer(GD.thePlayer, ServerAddress.text, ip);
     if (res[0] != '!') {
@@ -860,13 +862,13 @@ public class GameLoader : MonoBehaviour {
     int.TryParse(ServerPort.text, out int ip);
     if (GD.thePlayer == null) {
       // Create a dummy player for remote connections
-      GD.thePlayer = new Player("Server Manager");
+      GD.thePlayer = new PlayerHandler("Server Manager");
     }
     else if (GD.thePlayer != null && GD.thePlayer.tcpClient != null && GD.thePlayer.tcpClient.Connected) {
       GD.instance.networkManager.DisconnectFromServer(GD.thePlayer);
       chat.EndChats(GD.thePlayer);
       // Create a dummy player for remote connections
-      GD.thePlayer = new Player("Server Manager");
+      GD.thePlayer = new PlayerHandler("Server Manager");
     }
     string res = GD.instance.networkManager.ConnectToRemoteServer(GD.thePlayer, ServerPassword.text, ServerAddress.text, ip);
     if (res[0] != '!') {
@@ -881,7 +883,7 @@ public class GameLoader : MonoBehaviour {
       GD.SetStatus(LoaderStatus.RemoteServer);
       SetInfo("Remote server access created");
       GD.DebugLog("Remote server access created...", GD.LT.Log);
-      ulong.TryParse(res, out GD.thePlayer.ID);
+      ulong.TryParse(res, out GD.thePlayer.player.def.id);
       chat.Startup(GD.thePlayer);
 
       GameModeInfoText.text = "Remote Server";
@@ -937,21 +939,20 @@ public class GameLoader : MonoBehaviour {
     }
     GameName.text = GameName.text.Trim();
     // Create the actual game
-    string res = GD.instance.networkManager.CreateGameClient(GameName.text, GD.thePlayer, DifficultyMP.value, NumPlayers.value, NumAIs.value);
+    string res = GD.instance.networkManager.CreateGameClient(GameName.text, GD.thePlayer, DifficultyMP.value, NumPlayers.value, NumAIs.value, out GD.thePlayer.currentGameID);
     if (string.IsNullOrEmpty(res)) {
       CreateGameLine.SetActive(false);
       CreateGameButton.gameObject.SetActive(true);
       RefreshGameListButton.gameObject.SetActive(true);
       RefreshGameListButtonText.text = "Refresh Game List";
       RefreshGames();
-      GD.thePlayer.CurrentGame = GameName.text;
     }
     else
       SetInfo(res, true);
   }
 
-  public void JoinGame(string gamename) {
-    string res = GD.instance.networkManager.JoinGameClient(GD.thePlayer, gamename);
+  public void JoinGame(ulong gameid) {
+    string res = GD.instance.networkManager.JoinGameClient(GD.thePlayer, gameid);
     if (string.IsNullOrEmpty(res)) {
       SetInfo("");
       return;
@@ -962,14 +963,14 @@ public class GameLoader : MonoBehaviour {
       RefreshGameListButton.gameObject.SetActive(true);
       RefreshGameListButtonText.text = "Refresh Game List";
       GameTxt.text = "";
-      GD.thePlayer.CurrentGame = gamename;
+      GD.thePlayer.currentGameID = 0;
     }
     else
       SetInfo(res.Substring(1), true);
   }
 
-  public void LeaveGame(string gamename) {
-    string res = GD.instance.networkManager.LeaveGameClient(GD.thePlayer, gamename);
+  public void LeaveGame(ulong gameid) {
+    string res = GD.instance.networkManager.LeaveGameClient(GD.thePlayer, gameid);
     if (string.IsNullOrEmpty(res)) {
       SetInfo("");
       return;
@@ -980,7 +981,7 @@ public class GameLoader : MonoBehaviour {
       RefreshGameListButton.gameObject.SetActive(true);
       RefreshGameListButtonText.text = "Refresh Game List";
       GameTxt.text = "";
-      GD.thePlayer.CurrentGame = "";
+      GD.thePlayer.currentGameID = 0;
       RefreshGames();
     }
     else
@@ -988,7 +989,7 @@ public class GameLoader : MonoBehaviour {
   }
 
   public void LeaveGameMultiplayer() {
-    string res = GD.instance.networkManager.LeaveGameClient(GD.thePlayer, GD.thePlayer.CurrentGame);
+    string res = GD.instance.networkManager.LeaveGameClient(GD.thePlayer, GD.thePlayer.currentGameID);
     if (string.IsNullOrEmpty(res)) {
       SetInfo("");
       MultiPlayerStarting.SetActive(false);
@@ -1002,7 +1003,7 @@ public class GameLoader : MonoBehaviour {
       RefreshGameListButton.gameObject.SetActive(true);
       RefreshGameListButtonText.text = "Refresh Game List";
       GameTxt.text = "";
-      GD.thePlayer.CurrentGame = "";
+      GD.thePlayer.currentGameID = 0;
       RefreshGames();
     }
     else
@@ -1010,10 +1011,10 @@ public class GameLoader : MonoBehaviour {
   }
 
 
-  public void DestroyGame(string gamename) {
+  public void DestroyGame(ulong gameid) {
     if (GD.thePlayer != null) {
       if (GD.IsStatus(LoaderStatus.MultiPlayer, LoaderStatus.RemoteServer)) {
-        string res = GD.instance.networkManager.DeleteGameClient(GD.thePlayer, gamename);
+        string res = GD.instance.networkManager.DeleteGameClient(GD.thePlayer, gameid);
         if (!string.IsNullOrEmpty(res)) {
           if (res[0] != '!') {
             SetInfo(res);
@@ -1032,8 +1033,8 @@ public class GameLoader : MonoBehaviour {
       }
     }
     else {
-      byte[] name = System.Text.Encoding.UTF8.GetBytes(gamename);
-      GD.instance.networkManager.DeleteGame(null, name, name.Length);
+      byte[] id = System.BitConverter.GetBytes(gameid);
+      GD.instance.networkManager.DeleteGame(null, id, 8);
     }
   }
 
@@ -1050,9 +1051,9 @@ public class GameLoader : MonoBehaviour {
     // Open the chat window, set the recipent
     chat.StartChatWith(playerID, pname, pavatar);
   }
-  public void StartChatWith(string gamename) {
+  public void StartChatWith(ulong gameid) {
     // Start a chat with all people in the game (we need to ask for the ids) and ourself
-    string res = GD.instance.networkManager.GetPlayersFromGameClient(GD.thePlayer, gamename);
+    string res = GD.instance.networkManager.GetPlayersFromGameClient(GD.thePlayer, gameid);
     if (!string.IsNullOrWhiteSpace(res) && res[0] == '!')
       SetInfo(res.Substring(1), true);
   }
@@ -1075,7 +1076,6 @@ public class GameLoader : MonoBehaviour {
     serverMessages[serverMessagesNum].message = msg.message;
     serverMessages[serverMessagesNum].gameList = msg.gameList;
     serverMessages[serverMessagesNum].playersList = msg.playerList;
-    serverMessages[serverMessagesNum].gameplayers = msg.gamePlayersList;
     serverMessages[serverMessagesNum].num = msg.num;
     serverMessagesNum++;
   }
@@ -1084,17 +1084,17 @@ public class GameLoader : MonoBehaviour {
     public ServerMessages type;
     public string message;
     public List<Game> gameList;
-    public List<Player> playersList;
-    public SimpleList gameplayers;
+    public List<PlayerDef> playersList;
     public int num; // In case the type is StartingTheGame then the value of num indicates what is going on. =2 if single player starting, =0 if multiplayer but not all players started, =1 if multiplayer and all players started
+    public ulong id;
 
     public ServerMessage(ServerMessages type) {
       this.type = type;
       message = null;
       gameList = null;
       playersList = null;
-      gameplayers = null;
       num = 0;
+      id = 0;
     }
   }
 
@@ -1107,8 +1107,8 @@ public class GameLoader : MonoBehaviour {
     serverMessages[serverMessagesNum - 1].message = null;
     serverMessages[serverMessagesNum - 1].gameList = null;
     serverMessages[serverMessagesNum - 1].playersList = null;
-    serverMessages[serverMessagesNum - 1].gameplayers = null;
     serverMessages[serverMessagesNum - 1].num = 0;
+    serverMessages[serverMessagesNum - 1].id = 0;
     serverMessagesNum--;
     return res;
   }
@@ -1158,28 +1158,27 @@ public class GameLoader : MonoBehaviour {
       line.transform.Find("Joined").GetComponent<TextMeshProUGUI>().text = g.NumJoined.ToString();
       line.transform.Find("Status").GetComponent<TextMeshProUGUI>().text = g.Status.ToString();
 
-      string gameName = (string)g.Name.Clone();
       if (GD.IsStatus(LoaderStatus.Server, LoaderStatus.RemoteServer)) {
         line.transform.Find("Chat").gameObject.SetActive(true);
-        line.transform.Find("Chat").GetComponent<Button>().onClick.AddListener(delegate { StartChatWith(gameName); });
+        line.transform.Find("Chat").GetComponent<Button>().onClick.AddListener(delegate { StartChatWith(g.id); });
         line.transform.Find("Join").gameObject.SetActive(false);
         line.transform.Find("Leave").gameObject.SetActive(false);
         line.transform.Find("Destroy").gameObject.SetActive(true); // Always possible to remove a game server side
-        line.transform.Find("Destroy").GetComponent<Button>().onClick.AddListener(delegate { DestroyGame(gameName); });
+        line.transform.Find("Destroy").GetComponent<Button>().onClick.AddListener(delegate { DestroyGame(g.id); });
       }
       else {
         line.transform.Find("Chat").gameObject.SetActive(true);
-        line.transform.Find("Chat").GetComponent<Button>().onClick.AddListener(delegate { StartChatWith(gameName); });
-        line.transform.Find("Join").gameObject.SetActive(!g.AmIIn(GD.thePlayer) && g.SpaceAvailable() && g.Status == GameStatus.Waiting);
-        line.transform.Find("Join").GetComponent<Button>().onClick.AddListener(delegate { JoinGame(gameName); });
-        line.transform.Find("Leave").gameObject.SetActive(g.AmIIn(GD.thePlayer));
-        line.transform.Find("Leave").GetComponent<Button>().onClick.AddListener(delegate { LeaveGame(gameName); });
+        line.transform.Find("Chat").GetComponent<Button>().onClick.AddListener(delegate { StartChatWith(g.id); });
+        line.transform.Find("Join").gameObject.SetActive(!g.AmIIn(GD.thePlayer.ID) && g.SpaceAvailable() && g.Status == GameStatus.Waiting);
+        line.transform.Find("Join").GetComponent<Button>().onClick.AddListener(delegate { JoinGame(g.id); });
+        line.transform.Find("Leave").gameObject.SetActive(g.AmIIn(GD.thePlayer.ID));
+        line.transform.Find("Leave").GetComponent<Button>().onClick.AddListener(delegate { LeaveGame(g.id); });
         line.transform.Find("Destroy").gameObject.SetActive(GD.thePlayer.ID.Equals(g.Creator.id)); // Only if I was the creator
-        line.transform.Find("Destroy").GetComponent<Button>().onClick.AddListener(delegate { DestroyGame(gameName); });
+        line.transform.Find("Destroy").GetComponent<Button>().onClick.AddListener(delegate { DestroyGame(g.id); });
       }
       pos++;
 
-      if (GD.thePlayer != null && GD.thePlayer.CurrentGame == g.Name) {
+      if (GD.thePlayer != null && GD.thePlayer.currentGameID == g.id) {
         foundOurGame = true;
       }
     }
@@ -1188,7 +1187,7 @@ public class GameLoader : MonoBehaviour {
     }
   }
 
-  public void UpdatePlayersList(List<Player> players) {
+  public void UpdatePlayersList(List<PlayerDef> players) {
     if (players == null) return;
     PlayersList.SetActive(true);
     GamesList.SetActive(false);
@@ -1206,26 +1205,23 @@ public class GameLoader : MonoBehaviour {
     SetInfo(players.Count + " player" + (players.Count == 1 ? "" : "s") + " registered");
 
     int pos = 0;
-    foreach (Player p in players) {
+    foreach (PlayerDef p in players) {
       GameObject line = Instantiate(PlayerLineTemplate, PlayersGrid);
       line.transform.localPosition = new Vector3(0, pos * -40f, 0);
       pos++;
       // Find the parts of the line and update the values
-      ulong playerID = p.ID;
-      int avatar = p.Avatar;
-      string pname = (string)p.Name.Clone();
-      line.transform.Find("Avatar").GetComponent<Image>().sprite = GD.Avatar(p.Avatar);
-      line.transform.Find("PlayerName").GetComponent<TextMeshProUGUI>().text = p.Name;
-      if (GD.thePlayer != null && p.ID != GD.thePlayer.ID)
+      ulong playerID = p.id;
+      int avatar = p.avatar;
+      string pname = (string)p.name.Clone();
+      line.transform.Find("Avatar").GetComponent<Image>().sprite = GD.Avatar(p.avatar);
+      line.transform.Find("PlayerName").GetComponent<TextMeshProUGUI>().text = p.name;
+      if (GD.thePlayer != null && p.id != GD.thePlayer.ID)
         line.transform.Find("Chat").GetComponent<Button>().onClick.AddListener(delegate { StartChatWith(playerID, pname, avatar); });
       else
         line.transform.Find("Chat").gameObject.SetActive(false);
-      line.transform.Find("LastAccess").GetComponent<TextMeshProUGUI>().text = p.LastAccess.ToString();
-      line.transform.Find("IP").GetComponent<TextMeshProUGUI>().text = p.IP.ToString();
-      if (p.Status != StatusOfPlayer.Waiting)
-        line.transform.Find("Status").GetComponent<TextMeshProUGUI>().text = p.Status.ToString() + " " + p.CurrentGame;
-      else
-        line.transform.Find("Status").GetComponent<TextMeshProUGUI>().text = p.Status.ToString();
+      line.transform.Find("LastAccess").GetComponent<TextMeshProUGUI>().text = "FIXME REMOVE!";
+      line.transform.Find("IP").GetComponent<TextMeshProUGUI>().text = "FIXME REMOVE!";
+      line.transform.Find("Status").GetComponent<TextMeshProUGUI>().text = p.Status.ToString();
     }
   }
 

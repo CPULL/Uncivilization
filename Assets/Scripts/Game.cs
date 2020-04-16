@@ -2,27 +2,27 @@
 
 
 public class Game {
-  public string Name;           // Serialized
-  public int Difficulty;        // Serialized
-  public int NumPlayers;        // Serialized
-  public int NumJoined;         // Serialized
-  public int NumAIs;            // Serialized
-  public GameStatus Status;     // Serialized
-  public SimplePlayer Creator;  // Serialized
-  public SimplePlayer Winner;   // Serialized
-  public DateTime CreationTime; // Serialized
+  public ulong id;
+  public string Name;
+  public int Difficulty;
+  public int NumPlayers;
+  public int NumJoined;
+  public int NumAIs;
+  public GameStatus Status;
+  public PlayerDef Creator;
+  public PlayerDef Winner;
+  public DateTime CreationTime;
 
-  public int rndSeed;           // Serialized
-  public bool multiplayer;      // Serialized
-  public SimpleList Players;    // Serialized
+  public int rndSeed;
+  public bool multiplayer;
+  public int nump;
+  public PlayerDef[] Players; // Needed to communicate with the clients
   public GameEngine engine;
-  public Player localPlayer;
 
   public byte[] Serialize() {
     byte[] nd = System.Text.Encoding.UTF8.GetBytes(Name); // 1 + len
     byte[] crd = Creator.Serialize(); // 1 + len
     byte[] wid = Winner.Serialize(); // 1 + len
-    byte[] sps = Players.Serialize();
 
     int len = 2 + // full len of the data
               1 + nd.Length + // Name
@@ -35,8 +35,7 @@ public class Game {
               1 + wid.Length + // Winner
               8 + // Creation time
               4 + // Random seed
-              1 + // Multiplayer
-              sps.Length; // Players in the list
+              1;  // Multiplayer
 
     byte[] res = new byte[len];
     short len16 = (short)len;
@@ -47,20 +46,19 @@ public class Game {
     for (int i = 0; i < nd.Length; i++)
       res[3 + i] = nd[i];
     int pos = 3 + nd.Length;
-    res[pos + 0] = (byte)Difficulty;
-    res[pos + 1] = (byte)NumPlayers;
-    res[pos + 2] = (byte)NumJoined;
-    res[pos + 3] = (byte)NumAIs;
-    res[pos + 4] = (byte)Status;
-    pos += 5;
-    res[pos] = (byte)crd.Length;
+    res[pos++] = (byte)Difficulty;
+    res[pos++] = (byte)NumPlayers;
+    res[pos++] = (byte)NumJoined;
+    res[pos++] = (byte)NumAIs;
+    res[pos++] = (byte)Status;
+    res[pos++] = (byte)crd.Length;
     for (int i = 0; i < crd.Length; i++)
-      res[pos + 1 + i] = crd[i];
-    pos += 1 + crd.Length;
-    res[pos] = (byte)wid.Length;
+      res[pos + i] = crd[i];
+    pos += crd.Length;
+    res[pos++] = (byte)wid.Length;
     for (int i = 0; i < wid.Length; i++)
-      res[pos + 1 + i] = wid[i];
-    pos += 1 + wid.Length;
+      res[pos + i] = wid[i];
+    pos += wid.Length;
 
     long time = CreationTime.ToBinary();
     byte[] ctd = BitConverter.GetBytes(time);
@@ -74,10 +72,6 @@ public class Game {
     pos += 4;
 
     res[pos] = (byte)(multiplayer ? 1 : 0);
-    pos++;
-
-    for (int i = 0; i < sps.Length; i++)
-      res[pos + i] = sps[i];
 
     return res;
   }
@@ -97,9 +91,9 @@ public class Game {
     Status = (GameStatus)data[pos + 4];
     pos += 5;
 
-    Creator = new SimplePlayer(data, pos + 1);
+    Creator = new PlayerDef(data, pos + 1);
     pos += data[pos] + 1;
-    Winner = new SimplePlayer(data, pos + 1);
+    Winner = new PlayerDef(data, pos + 1);
     pos += data[pos] + 1;
 
     long time = BitConverter.ToInt64(data, pos);
@@ -110,45 +104,98 @@ public class Game {
     pos += 4;
 
     multiplayer = data[pos] != 0;
-    pos++;
 
-    Players = new SimpleList(data, pos);
+    nump = 0;
+    Players = new PlayerDef[6];
   }
 
   public Game(string name, Player player, int difficulty, int numplayers, int numais) {
     Name = name;
-    Creator = new SimplePlayer(player.ID, player.Name, (byte)player.Avatar);
+    Creator = player.def;
     Difficulty = difficulty;
     NumPlayers = numplayers;
     NumAIs = numais;
     NumJoined = 1;
-    Winner = new SimplePlayer();
+    Winner = new PlayerDef();
     Status = GameStatus.Waiting;
     CreationTime = DateTime.Now;
-    Players = new SimpleList(Creator);
+    nump = 1;
+    Players = new PlayerDef[6];
+    Players[0] = player.def;
     while (NumPlayers + NumAIs > 6) NumAIs--;
+
+    byte[] ID = new byte[8];
+    byte[] d = System.Text.Encoding.UTF8.GetBytes(Name);
+    for (int i = 0; i < d.Length; i++)
+      ID[i % 8] = (byte)(ID[i % 8] ^ d[i]);
+    ID[0] = (byte)(ID[0] ^ NumPlayers);
+    ID[1] = (byte)(ID[1] ^ NumAIs);
+    ID[2] = (byte)(ID[2] ^ Difficulty);
+
+    d = BitConverter.GetBytes(CreationTime.Ticks);
+    for (int i = 0; i < d.Length; i++)
+      ID[i % 8] = (byte)(ID[i % 8] ^ d[i]);
+
+    id = BitConverter.ToUInt64(ID, 0);
   }
 
-  public bool AmIIn(Player player) {
-    return Players.Contains(player.ID);
+  public void AddPlayer(ulong id, string name, byte avatar) {
+    Players[nump] = new PlayerDef(id, name, avatar);
+    nump++;
+  }
+
+  public PlayerDef GetPlayer(ulong id) {
+    for (int i = 0; i < nump; i++)
+      if (Players[i].id == id) return Players[i];
+    return null;
+  }
+
+  public void AddPlayer(PlayerHandler player) {
+    Players[nump] = player.player.def;
+    nump++;
+  }
+
+  public void AddPlayer(PlayerDef player) {
+    Players[nump] = player;
+    nump++;
+  }
+
+  public bool AmIIn(ulong id) {
+    for (int i = 0; i < nump; i++)
+      if (Players[i].id == id) return true;
+    return false;
   }
 
   public bool SpaceAvailable() {
     return NumPlayers > NumJoined;
   }
 
-  public bool RemovePlayer(ulong playerID) {
-    if (Players.Remove(playerID)) {
-      NumJoined--;
-      Status = GameStatus.Waiting;
-      return true;
-    }
-    return false;
+  public bool RemovePlayer(ulong id) {
+    if (!AmIIn(id)) return false;
+
+    for (int i = 5; i >= 0; i--)
+      if (Players[i].id == id) {
+        for (int j = i; j < 5; j++)
+          Players[j] = Players[j + 1];
+        Players[5] = null;
+        nump--;
+        break;
+      }
+    NumJoined--;
+    Status = GameStatus.Waiting;
+    return true;
   }
 
   public void Destroy() {
     engine = null;
-    localPlayer = null;
+  }
+
+  internal void SetPlayerStatus(ulong id, PlayerGameStatus status) {
+    for (int i = 0; i < 6; i++)
+      if (Players[i].id == id) {
+        Players[i].Status = status;
+        return;
+      }
   }
 }
 

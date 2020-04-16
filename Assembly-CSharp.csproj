@@ -63,12 +63,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Balloon\Balloon.cs" />
+    <Compile Include="Assets\Chat\Balloon.cs" />
     <Compile Include="Assets\Chat\Chat.cs" />
     <Compile Include="Assets\Chat\ChatManager.cs" />
     <Compile Include="Assets\Enemies\Character.cs" />
     <Compile Include="Assets\Enemies\Enemy.cs" />
-    <Compile Include="Assets\Enemies\PlayerStatus.cs" />
+    <Compile Include="Assets\Enemies\Player.cs" />
     <Compile Include="Assets\Scripts\CitiesGridLayout.cs" />
     <Compile Include="Assets\Scripts\CitiesImprovementsLayout.cs" />
     <Compile Include="Assets\Scripts\City.cs" />
@@ -78,11 +78,14 @@
     <Compile Include="Assets\Scripts\GameEngine.cs" />
     <Compile Include="Assets\Scripts\GameLoader.cs" />
     <Compile Include="Assets\Scripts\GameRenderer.cs" />
+    <Compile Include="Assets\Scripts\GameValues.cs" />
+    <Compile Include="Assets\Scripts\Happiness.cs" />
     <Compile Include="Assets\Scripts\Item.cs" />
     <Compile Include="Assets\Scripts\NetworkManager.cs" />
     <Compile Include="Assets\Scripts\Options.cs" />
-    <Compile Include="Assets\Scripts\Player.cs" />
+    <Compile Include="Assets\Scripts\Person.cs" />
     <Compile Include="Assets\Scripts\Sea.cs" />
+    <Compile Include="Assets\Scripts\SelfDestroy.cs" />
     <Compile Include="Assets\Scripts\Sounds.cs" />
     <Compile Include="Assets\_ToBePlacedSomewhere\World.cs" />
     <None Include="Assets\TextMesh Pro\Resources\Shaders\TMPro.cginc" />

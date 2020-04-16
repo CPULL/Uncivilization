@@ -33,14 +33,10 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   public SpriteAtlas items;
   public Image[] Improvements;
 
-  public int pos; // Number from 0 to 54 for all possible cities, 3x3 for each sector
-  public PlayerStatus owner;
-  public int population;
+  public CityVals vals;
+
   public bool[] improvements;
-  public int sector;
-  public CityStatus status;
   public CityHighlight highlight;
-  public int px, py;
   private bool areWeOver = false;
 
   private Color transparency = new Color32(0, 0, 0, 0);
@@ -49,25 +45,20 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
 
   public Action<object, EventArgs> OnClick { get; internal set; }
 
-  public City Init(int position) {
+  public City Init(CityVals src) {
     radiation.gameObject.SetActive(false);
     city.gameObject.SetActive(true); // FIXME set to false, but use it to debug the positions
     popText.text = "";
     varText.text = "";
-    status = CityStatus.Empty;
     improvements = new bool[19];
     for (int i = 0; i < 19; i++) {
       improvements[i] = false;
       Improvements[i].enabled = false;
     }
 
-    pos = position;
-    owner = null; // unassigned
-    population = 0;
-    sector = (pos % 9) / 3 + (pos > 26 ? 3 : 0);
-    px = pos % 9;
-    py = pos / 9;
-
+    vals = src;
+    int px = src.pos % 9;
+    int py = src.pos / 9;
     posx = 80 + px * 150 + 20 * (px / 3);
     posy = 735 - py * 115 - (py > 2 ? 55 : 0);
     transform.position = new Vector3(posx, posy, 0);
@@ -76,19 +67,23 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     return this;
   }
 
-  internal void Set(int pop, PlayerStatus own) {
-    population = pop;
-    popText.text = pop + "M";
-    owner = own;
-    status = CityStatus.Owned;
+  internal void Set() {
+    popText.text = vals.population + "M";
+    vals.status = CityStatus.Owned;
     SetSprite();
   }
 
   private void SetSprite() {
-    // Empty -> never shown
-    if (status == CityStatus.Empty) {
-      city.sprite = null;
-      city.color = transparency;
+    // Empty -> never shown unless is Settling
+    if (vals.status == CityStatus.Empty) {
+      if (highlight == CityHighlight.Settling) {
+        city.sprite = areWeOver ?  items.GetSprite("Items_128") : items.GetSprite("Items_127");
+        city.color = fullVisible;
+      }
+      else {
+        city.sprite = null;
+        city.color = transparency;
+      }
       radiation.gameObject.SetActive(false);
       popText.text = "";
       varText.text = "";
@@ -98,11 +93,11 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     }
 
     // Owned and not radioactive, but the border will depend on the highlightstatus
-    if (status == CityStatus.Owned || status == CityStatus.Radioactive) {
-      radiation.gameObject.SetActive(status == CityStatus.Radioactive);
+    if (vals.status == CityStatus.Owned || vals.status == CityStatus.Radioactive) {
+      radiation.gameObject.SetActive(vals.status == CityStatus.Radioactive);
       switch (highlight) {
         case CityHighlight.Owned: // Selectable if the player is the owner, half color if not the owner
-          if (owner.id == GD.thePlayer.ID) {
+          if (vals.owner == GD.localPlayerIndex) {
             city.color = fullVisible;
             for (int i = 0; i < 19; i++)
               Improvements[i].enabled = improvements[i];
@@ -131,33 +126,32 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
       }
     }
 
-    if (status == CityStatus.Destroyed || status == CityStatus.RadioWaste) {
-      radiation.gameObject.SetActive(status == CityStatus.RadioWaste);
+    if (vals.status == CityStatus.Destroyed || vals.status == CityStatus.RadioWaste) {
+      radiation.gameObject.SetActive(vals.status == CityStatus.RadioWaste);
       if (highlight == CityHighlight.Denucrearise) {
         if (areWeOver)
           city.sprite = items.GetSprite("Items_105"); // Flag over crater
         else
-          city.sprite = items.GetSprite("Items_" + 9 + 16 * owner.index); // Flag over crater with owner color
+          city.sprite = items.GetSprite("Items_" + 9 + 16 * vals.owner); // Flag over crater with owner color
       }
       else
         city.sprite = items.GetSprite("Items_" + CalculateSpriteOnPopulation());
     }
-
   }
 
   private int CalculateSpriteOnPopulation() {
     int s;
-    if (population == 0) s = 0;
-    else if (population < 5) s = 1;
-    else if (population < 10) s = 2;
-    else if (population < 25) s = 3;
-    else if (population < 50) s = 4;
-    else if (population < 100) s = 5;
-    else if (population < 250) s = 6;
-    else if (population < 500) s = 7;
+    if (vals.population == 0) s = 0;
+    else if (vals.population < 5) s = 1;
+    else if (vals.population < 10) s = 2;
+    else if (vals.population < 25) s = 3;
+    else if (vals.population < 50) s = 4;
+    else if (vals.population < 100) s = 5;
+    else if (vals.population < 250) s = 6;
+    else if (vals.population < 500) s = 7;
     else s = 8;
     if (areWeOver) s += 96;
-    else s += 16 * owner.index;
+    else s += 16 * vals.owner;
     return s;
   }
 
@@ -171,7 +165,7 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
       // FIXME
     }
     else if (action == PlayerAction.BuildCityImprovements) { // Highlight only if the city is ours and the improvement (if selected) is not yet in the city. On click select the city for the improvement
-      if ((status != CityStatus.Owned && status != CityStatus.Radioactive) || owner.id != GD.thePlayer.ID) return;
+      if ((vals.status != CityStatus.Owned && vals.status != CityStatus.Radioactive) || vals.owner != GD.localPlayerIndex) return;
       areWeOver = true;
       SetSprite();
     }
@@ -182,7 +176,7 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
   public void OnPointerClick(PointerEventData eventData) {
-    if (!areWeOver || status == CityStatus.Empty) return;
+    if (!areWeOver || vals.status == CityStatus.Empty) return;
     areWeOver = false;
     SetSprite();
 
@@ -198,10 +192,11 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
 
-  public void SetValues(CityVals cv, PlayerStatus ownerval) {
-    status = cv.status;
-    owner = ownerval;
-    if (population != cv.population) AddPopulation(cv.population - population);
+  public void SetValues(CityVals cv) {
+    vals.status = cv.status;
+    vals.owner = cv.owner;
+    if (vals.population != cv.population) AddPopulation(cv.population - vals.population);
+    vals.improvementsBF |= cv.improvementsBF;
     for (int i = 0; i < improvements.Length; i++)
       improvements[i] = (cv.improvementsBF & (1 << i)) != 0;
     SetSprite();
@@ -225,16 +220,16 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
 
   public string GetSpriteName() {
     int s;
-    if (population == 0) s = 0;
-    else if (population < 5) s = 1;
-    else if (population < 10) s = 2;
-    else if (population < 20) s = 3;
-    else if (population < 40) s = 4;
-    else if (population < 60) s = 5;
-    else if (population < 80) s = 6;
-    else if (population < 100) s = 7;
+    if (vals.population == 0) s = 0;
+    else if (vals.population < 5) s = 1;
+    else if (vals.population < 10) s = 2;
+    else if (vals.population < 20) s = 3;
+    else if (vals.population < 40) s = 4;
+    else if (vals.population < 60) s = 5;
+    else if (vals.population < 80) s = 6;
+    else if (vals.population < 100) s = 7;
     else s = 8;
-    s += 16 * owner.index;
+    s += 16 * vals.owner;
     return "Items_" + s;
   }
 
@@ -243,15 +238,15 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
   public bool IsDestroyed() {
-    return status == CityStatus.Destroyed || status == CityStatus.RadioWaste;
+    return vals.status == CityStatus.Destroyed || vals.status == CityStatus.RadioWaste;
   }
 
   public int GetPopulation() {
-    return population;
+    return vals.population;
   }
 
   public void SetPopulation(int p) {
-    population = p;
+    vals.population = p;
     popText.text = p + "M";
     SetSprite();
   }
@@ -285,8 +280,8 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
   }
 
   internal void AddPopulation(int amount) {
-    population += amount;
-    popText.text = population + "M";
+    vals.population += amount;
+    popText.text = vals.population + "M";
     if (amount != 0) {
       if (anim != null) StopCoroutine(anim);
       anim = ChangeAnim(amount);
@@ -298,73 +293,69 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
 
 
   public bool KillPopulation(float dead, bool radio) {
-    if (population - (int)dead < 0) dead = population;
+    if (vals.population - (int)dead < 0) dead = vals.population;
     if (dead != 0) {
       if (anim != null) StopCoroutine(anim);
       anim = ChangeAnim((int)-dead);
       StartCoroutine(anim);
     }
-    population -= (int)dead;
-    if (population <= 0) {
+    vals.population -= (int)dead;
+    if (vals.population <= 0) {
       radiation.gameObject.SetActive(radio);
-      status = radio ? CityStatus.RadioWaste : CityStatus.Destroyed;
-      population = 0;
+      vals.status = radio ? CityStatus.RadioWaste : CityStatus.Destroyed;
+      vals.population = 0;
       popText.text = "";
       SetSprite();
       return true;
     }
     else
-      popText.text = population + "M";
+      popText.text = vals.population + "M";
     SetSprite();
     return false;
   }
 
   public void Obliterate(bool radioactive) {
-    if (population != 0) {
+    if (vals.population != 0) {
       if (anim != null) StopCoroutine(anim);
-      anim = ChangeAnim(-population);
+      anim = ChangeAnim(-vals.population);
       StartCoroutine(anim);
     }
-    population = 0;
+    vals.population = 0;
     popText.text = "";
-    status = radioactive ? CityStatus.RadioWaste : CityStatus.Destroyed;
+    vals.status = radioactive ? CityStatus.RadioWaste : CityStatus.Destroyed;
     SetSprite();
     radiation.gameObject.SetActive(radioactive);
   }
 
-  internal Vector3 GetCityPosition() {
-    return transform.position;
+  internal bool IsInhabitedMoreThanOne(byte owner) {
+    return (vals.owner == owner && vals.population > 1 && vals.status != CityStatus.Radioactive);
   }
 
-  internal bool IsInhabitedMoreThanOne(PlayerStatus owner) {
-    return (this.owner == owner && population > 1 && status != CityStatus.Radioactive);
+  internal bool IsInhabited(byte owner) {
+    return (vals.owner == owner && vals.population > 0 && vals.status != CityStatus.Radioactive);
   }
 
-  internal bool IsInhabited(PlayerStatus owner) {
-    return (this.owner == owner && population > 0 && status != CityStatus.Radioactive);
-  }
-
-  internal void MakeAbitable(int pop, PlayerStatus own) {
+  internal void MakeAbitable(int pop, byte owner) {
     if (pop == 0) return;
     if (pop < 0) pop = -pop;
-    owner = own;
-    status = CityStatus.Owned;
+    vals.owner = owner;
+    vals.status = CityStatus.Owned;
     SetSprite();
     AddPopulation(pop);
   }
 
 
-  internal void Assign(PlayerStatus owner) {
-    status = CityStatus.Owned;
-    this.owner = owner;
+  internal void Assign(byte owner) {
+    vals.status = CityStatus.Owned;
+    vals.owner = owner;
     radiation.gameObject.SetActive(false);
     SetSprite();
   }
 
-  internal void ResetCity(PlayerStatus owner) {
-    status = CityStatus.Owned;
-    this.owner = owner;
-    if (population < 0) population = 0;
+  internal void ResetCity(byte owner) {
+    vals.status = CityStatus.Owned;
+    vals.owner = owner;
+    if (vals.population < 0) vals.population = 0;
     radiation.gameObject.SetActive(false);
     SetSprite();
   }
@@ -374,17 +365,17 @@ public class City : MonoBehaviour, IPointerEnterHandler, IPointerClickHandler, I
     varText.fontSize = size;
   }
 
-  internal bool IsValid(int player) {
-    return owner.index == player && status == CityStatus.Owned && population > 0;
+  internal bool IsValid(byte owner) {
+    return vals.owner == owner && vals.status == CityStatus.Owned && vals.population > 0;
   }
 
-  internal int Owned(int player) {
-    if (owner.index == player && status == CityStatus.Owned && population > 0) return 1;
+  internal int Owned(byte owner) {
+    if (vals.owner == owner && vals.status == CityStatus.Owned && vals.population > 0) return 1;
     return 0;
   }
-  internal int NotMeAsOwner(int player) {
-    if (owner.index != player && owner.index != -1 && status == CityStatus.Owned && population > 0) return owner.index;
-    return -1;
+  internal byte NotMeAsOwner(byte owner) {
+    if (vals.owner != owner && vals.status == CityStatus.Owned && vals.population > 0) return owner;
+    return 0;
   }
 
 }

@@ -4,11 +4,12 @@ using UnityEngine;
 public class GD : MonoBehaviour {
   // Global class to keep all static stateless functions and the parameters, the global enaums are defined in this file (but outsize the class)
   public const int _definedChars_ = 14;
-  public const string Version = "V1.1 2020/03/25";
+  public const string Version = "V1.1 2020/04/10";
 
   public const int _GameActionLen = 4;
   public const int _PlayerStatusLen = 2 + // len
               8 + // id
+              1 + // happiness
               8 + // techs availability as bitfield
               8 + // bitfiled for ownership of cities + defeated flag
               10 * 4 * 3 + // resources (10 types * 3 values * 4 bytes)
@@ -45,7 +46,8 @@ public class GD : MonoBehaviour {
   System.Random random = null;
 
 
-  public static Player thePlayer = null;
+  public static PlayerHandler thePlayer = null;
+  public static byte localPlayerIndex = 255;
   public static int difficulty; // FIXME do we need it?
   public static Enemy[] enemies; // FIXME Are we using it?
 
@@ -181,7 +183,7 @@ public class GD : MonoBehaviour {
     return (float)val;
   }
 
-  public static int GetAvatarForAI(string name) {
+  public static byte GetAvatarForAI(string name) {
     switch (name) {
       case "Allassan": return 83;
       case "Almadinejud": return 84;
@@ -199,6 +201,10 @@ public class GD : MonoBehaviour {
       case "XinJinPooh": return 96;
       default: return 0;
     };
+  }
+
+  public static byte GetAvatarForAI(int index) {
+    return (byte)(index + 83);
   }
 
   public static ulong GetIDForAI(string name) {
@@ -394,7 +400,7 @@ public enum LoaderStatus {
 
 
 public enum GameStatus { Waiting = 1, ReadyToStart = 2, Playing = 3, Completed = 4 };
-public enum StatusOfPlayer { Waiting = 1, ReadyToStart = 2, StartingGame = 3, Playing = 4 };
+public enum PlayerGameStatus { Waiting = 1, ReadyToStart = 2, StartingGame = 3, Playing = 4 };
 
 public enum ServerMessages { Nothing = 0, Info, Error, ServerConnected, PingAnswer, GameListUpdated, GameList, PlayersList, GameCreated, GameJoined, GameLeft, GameDeleted, GameCanStart, PlayersOfGame, StartingTheGame };
 
@@ -462,7 +468,18 @@ public enum WeaponType { WarheadT, WarheadC, WarheadU, WarheadP, WarheadH, Deliv
 
 public enum ProductionType {  Resource=0, Technology=10, Improvement=40, Warhead, Delivery, Defense };
 
-
+public enum ResourceType {
+  Food=0,
+  Iron=1,
+  Aluminum=2,
+  Uranium=3,
+  Plutonium=4,
+  Hydrogen=5,
+  Plastic=6,
+  Electronics=7,
+  Composite=8,
+  FossilFuels=9,
+};
 
 public enum ItemType {
   // Resources - 0

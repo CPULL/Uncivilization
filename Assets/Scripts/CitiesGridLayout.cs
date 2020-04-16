@@ -71,9 +71,6 @@ namespace UnityEngine.UI {
         return;
       }
 
-      float width = rectTransform.rect.size.x;
-      float height = rectTransform.rect.size.y;
-
       int cellCountX = 9;
       int cellCountY = 6;
 

@@ -1,8 +1,6 @@
 
 
 TODO NOW ***************************
-When doing a turn, the data from the previous turn is accepted. Re-init the gameaction when the turn starts
-
 
 
 TODO ***************************
@@ -11,7 +9,7 @@ Add the prerequisites to all advanced items
 If a player leaves the server make it die in multiplayer (complete when the game will be playable)
 Add credits (special mention for Ollie)
 Add more avatars
-Implement view panels (in progress)
+Implement view panels (in progress) -> Have the items "toggled" only if it is not the basic one. Have the basic one selected by default
 Add server logs on the remote network, when writing something on the logs send it also to remote managers
 Add global balloon for game
 Add "what is going on" for the game (typing text)
@@ -20,24 +18,19 @@ When all players leave the game, set it as complete. In case AIs are still alive
 IMPROVEMENTS ***************************
 if a game is started the game list is not updated server side, neither the participants defined on the server
 Do not have the planet too close, and reduce the rotation
+If we leave the game, the game list still shows the game as "playing" (it may be normal because the game can still have humans inside) >> Add game status "Abandoned"
+
 
 
 CHECK ***************************
 
 
 BUGS ***************************
-If we create a game, then destroy it, then create a new one, we have problems joining it
-
-When restarting a game we have an error because the balloon was destroyed
 
 
-
-If we leave the game, the game list still shows the game as "playing" (it may be normal because the game can still have humans inside) >> Add game status "Abandoned"
-If going for an improvement we need to select a city! In case the city (owned) is not selected close the view and show a message. If the city was already selected then we show a message to complete the status
 
 
 PROBABLY WILL NOT FIX ***************************
-If we start creating a game, we cannot cancel the operation
 
 
 
@@ -135,3 +128,25 @@ Ship
 Submarine
 Drone
 Satellite
+
+
+
+
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+===================================================================================================================================================================================================
+
+
+Be sure CityVals are NOT duplicated. Only the Engine should have them.
+
+TEST: Replace all reference of game by name with game by id
+Understand what to do with GameEngineValues
+
+
+
